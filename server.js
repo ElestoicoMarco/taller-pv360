@@ -3,10 +3,11 @@ const mysql = require('mysql2');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
+// Configuración CORS permisiva para evitar bloqueos
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// CONFIGURACIÓN DE LA BASE DE DATOS
+// CONFIGURACIÓN BASE DE DATOS
 const db = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -20,13 +21,13 @@ const db = mysql.createPool({
     keepAliveInitialDelay: 0
 });
 
-console.log("✅ Servidor Backend: Activo y escuchando");
+console.log("✅ Servidor Backend: LISTO PARA RECIBIR ORDENES");
 
 // RUTA BASE
 app.get('/', (req, res) => res.send('API PV360 Online 🚀'));
 
 // ==========================================
-// 📊 1. API DE GRÁFICOS (NO TOCAR - YA FUNCIONA)
+// 📊 GRÁFICOS (DASHBOARD)
 // ==========================================
 app.get('/api/analytics', (req, res) => {
     const queries = {
@@ -41,10 +42,8 @@ app.get('/api/analytics', (req, res) => {
     };
 
     db.query(queries.kpis, (err1, resultKpis) => {
-        if (err1) {
-            console.error("Error KPIs:", err1);
-            return res.json({ kpis: { ots: 0, total: 0, flota: 0 }, chartVehiculos: [] });
-        }
+        if (err1) return res.json({ kpis: { ots: 0, total: 0, flota: 0 }, chartVehiculos: [] });
+        
         db.query(queries.vehiculos, (err2, resultChart) => {
             res.json({ kpis: resultKpis[0], chartVehiculos: resultChart || [] });
         });
@@ -52,10 +51,10 @@ app.get('/api/analytics', (req, res) => {
 });
 
 // ==========================================
-// 👥 2. API DE CLIENTES (CORRECCIONES CRUD)
+// 👥 CLIENTES (CRUD BLINDADO)
 // ==========================================
 
-// LEER CLIENTES
+// 1. LEER
 app.get('/api/clientes', (req, res) => {
     db.query("SELECT * FROM clientes ORDER BY id_cliente DESC", (err, rows) => {
         if (err) return res.status(500).send(err);
@@ -63,10 +62,9 @@ app.get('/api/clientes', (req, res) => {
     });
 });
 
-// CREAR CLIENTE
+// 2. CREAR
 app.post('/api/clientes', (req, res) => {
     const { nombre, nombre_completo, email, telefono } = req.body;
-    // Aceptamos cualquiera de los dos nombres para evitar errores
     const nombreFinal = nombre || nombre_completo;
 
     if (!nombreFinal) return res.status(400).json({ message: "Falta el nombre" });
@@ -78,35 +76,47 @@ app.post('/api/clientes', (req, res) => {
     });
 });
 
-// EDITAR CLIENTE (UPDATE)
+// 3. EDITAR (UPDATE) - CON VERIFICACIÓN DE ID
 app.put('/api/clientes/:id', (req, res) => {
-    const { id } = req.params; // ID que viene de la URL
+    const { id } = req.params;
     const { nombre, nombre_completo, email, telefono } = req.body;
     const nombreFinal = nombre || nombre_completo;
 
-    console.log(`🔄 Actualizando ID: ${id} - Datos: ${nombreFinal}`);
+    console.log(`🔄 PETICIÓN UPDATE RECIBIDA PARA ID: ${id}`); // Log para Render
 
     const sql = 'UPDATE clientes SET nombre_completo = ?, email = ?, telefono = ? WHERE id_cliente = ?';
     db.query(sql, [nombreFinal, email, telefono, id], (err, result) => {
         if (err) {
-            console.error("Error Update:", err);
+            console.error("❌ Error SQL:", err);
             return res.status(500).json({ error: err.message });
         }
+        
+        // LA CLAVE: Si no afectó ninguna fila, es que el ID no existe
+        if (result.affectedRows === 0) {
+            console.warn("⚠️ ALERTA: ID no encontrado en DB");
+            return res.status(404).json({ error: "No se encontró el cliente con ese ID" });
+        }
+
+        console.log("✅ Cliente actualizado con éxito");
         res.json({ success: true });
     });
 });
 
-// ELIMINAR CLIENTE (DELETE)
+// 4. ELIMINAR (DELETE) - CON VERIFICACIÓN DE ID
 app.delete('/api/clientes/:id', (req, res) => {
     const { id } = req.params;
-    console.log(`🗑️ Eliminando ID: ${id}`);
+    console.log(`🗑️ PETICIÓN DELETE RECIBIDA PARA ID: ${id}`); // Log para Render
 
     const sql = 'DELETE FROM clientes WHERE id_cliente = ?';
     db.query(sql, [id], (err, result) => {
-        if (err) {
-            console.error("Error Delete:", err);
-            return res.status(500).json({ error: err.message });
+        if (err) return res.status(500).json({ error: err.message });
+
+        // LA CLAVE: Verificamos si realmente borró algo
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "No se pudo borrar: ID no encontrado" });
         }
+
+        console.log("✅ Cliente eliminado con éxito");
         res.json({ success: true });
     });
 });
