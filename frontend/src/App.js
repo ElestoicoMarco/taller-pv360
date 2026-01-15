@@ -2,26 +2,28 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 
-// Importamos las páginas
+// IMPORTAMOS LAS PÁGINAS DEL SISTEMA
 import Dashboard from './pages/Dashboard';
-import Clientes from './pages/Clientes'; // <--- NUEVO IMPORT
+import Clientes from './pages/Clientes';
+import Reportes from './pages/Reportes';
+import Ordenes from './pages/Ordenes'; // 👈 AQUÍ ESTÁ EL NUEVO MÓDULO
 
 function App() {
-  // Mantenemos tu lógica de autenticación aquí
+  // --- 🔒 ZONA DE SEGURIDAD (LOGIN) ---
   const [isAuth, setIsAuth] = useState(false);
   const [code, setCode] = useState('');
 
-  // Función simple de login
   const handleLogin = (e) => {
     e.preventDefault();
+    // La clave maestra sigue siendo la misma
     if (code === 'JUJUY2025') {
       setIsAuth(true);
     } else {
-      alert("Código incorrecto");
+      alert("⛔ ACCESO DENEGADO: Código incorrecto");
     }
   };
 
-  // Si NO está autenticado, mostramos la pantalla de login (Estilo Dark)
+  // SI NO ESTÁ AUTENTICADO -> MUESTRA PANTALLA DE BLOQUEO
   if (!isAuth) {
     return (
       <div className="h-screen bg-slate-950 flex items-center justify-center p-4">
@@ -30,18 +32,18 @@ function App() {
             <ShieldCheck className="text-blue-500 w-10 h-10" />
           </div>
           <h1 className="text-white text-3xl font-bold mb-2">PV-360 PRO</h1>
-          <p className="text-slate-400 text-sm mb-8">Acceso Administrativo Seguro</p>
+          <p className="text-slate-400 text-sm mb-8">Sistema de Gestión Taller</p>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <input 
               type="password" 
-              placeholder="Código de Acceso" 
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-white text-center outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+              placeholder="Ingrese Código de Acceso" 
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-white text-center outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
               value={code} 
               onChange={e => setCode(e.target.value)} 
             />
             <button className="w-full bg-blue-600 text-white font-bold p-4 rounded-xl hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/30">
-              INGRESAR AL SISTEMA
+              DESBLOQUEAR SISTEMA
             </button>
           </form>
         </div>
@@ -49,18 +51,24 @@ function App() {
     );
   }
 
-  // Si está autenticado, mostramos el Router con las nuevas rutas
+  // SI YA INGRESÓ -> MUESTRA EL SISTEMA COMPLETO
   return (
     <Router>
       <Routes>
+        {/* PANTALLA PRINCIPAL */}
         <Route path="/" element={<Dashboard />} />
         
-        {/* Rutas nuevas agregadas */}
+        {/* GESTIÓN DE CLIENTES */}
         <Route path="/clientes" element={<Clientes />} />
-        <Route path="/reportes" element={<div className="text-white p-10 font-bold text-xl">🚧 Página de Reportes en construcción...</div>} />
         
-        {/* Redirección por defecto */}
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* 🛠️ NUEVA SECCIÓN: ÓRDENES DE TRABAJO */}
+        <Route path="/ordenes" element={<Ordenes />} />
+        
+        {/* REPORTES Y DOCUMENTACIÓN */}
+        <Route path="/reportes" element={<Reportes />} />
+        
+        {/* CUALQUIER OTRA RUTA REDIRIGE AL INICIO */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

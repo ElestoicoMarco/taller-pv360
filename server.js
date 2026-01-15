@@ -103,6 +103,53 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
         doc.end();
     });
 });
+// ==========================================
+// 4. ÓRDENES DE TRABAJO (OTs)
+// ==========================================
 
+// LEER TODAS LAS OTs (Con nombre de cliente)
+app.get('/api/ordenes', (req, res) => {
+    const sql = `
+        SELECT ot.id_ot, ot.detalle, ot.total_facturado, ot.estado, ot.fecha_ingreso, c.nombre_completo 
+        FROM ordenes_trabajo ot 
+        JOIN clientes c ON ot.id_cliente = c.id_cliente 
+        ORDER BY ot.id_ot DESC
+    `;
+    db.query(sql, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// CREAR NUEVA OT
+app.post('/api/ordenes', (req, res) => {
+    const { id_cliente, detalle, total_facturado, estado } = req.body;
+    
+    if (!id_cliente || !detalle) return res.status(400).json({ error: "Falta cliente o detalle" });
+
+    const sql = "INSERT INTO ordenes_trabajo (id_cliente, detalle, total_facturado, estado, fecha_ingreso) VALUES (?, ?, ?, ?, NOW())";
+    db.query(sql, [id_cliente, detalle, total_facturado || 0, estado || 'Pendiente'], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: result.insertId });
+    });
+});
+
+// ACTUALIZAR ESTADO O TOTAL
+app.put('/api/ordenes/:id', (req, res) => {
+    const { detalle, total_facturado, estado } = req.body;
+    const sql = "UPDATE ordenes_trabajo SET detalle = ?, total_facturado = ?, estado = ? WHERE id_ot = ?";
+    db.query(sql, [detalle, total_facturado, estado, req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// ELIMINAR OT
+app.delete('/api/ordenes/:id', (req, res) => {
+    db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
