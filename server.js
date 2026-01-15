@@ -3,11 +3,10 @@ const mysql = require('mysql2');
 const cors = require('cors');
 
 const app = express();
-// PERMITIR TODO (CORS abierto para evitar bloqueos del navegador)
-app.use(cors({ origin: '*' }));
+app.use(cors({ origin: '*' })); // Permitir todo
 app.use(express.json());
 
-// CONFIGURACIÓN DE BASE DE DATOS
+// DB CONFIG
 const db = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -21,98 +20,70 @@ const db = mysql.createPool({
     keepAliveInitialDelay: 0
 });
 
-console.log("✅ SISTEMA PV360: Servidor Iniciado");
+console.log("✅ Backend ACTIVO");
 
-app.get('/', (req, res) => res.send('API ONLINE v2.0'));
-
-// =======================================================
-// MÓDULO 1: ANALYTICS (GRÁFICOS)
-// =======================================================
+// --- ANALYTICS (GRAFICOS) ---
 app.get('/api/analytics', (req, res) => {
-    const kpisQuery = `
-        SELECT 
-        (SELECT COUNT(*) FROM ordenes_trabajo) as ots,
-        IFNULL((SELECT SUM(total_facturado) FROM ordenes_trabajo), 0) as total,
-        (SELECT COUNT(*) FROM vehiculos) as flota`;
-    
-    const chartQuery = `
-        SELECT v.modelo as name, SUM(ot.total_facturado) as valor 
-        FROM vehiculos v 
-        JOIN ordenes_trabajo ot ON v.id_vehiculo = ot.id_vehiculo 
-        GROUP BY v.modelo ORDER BY valor DESC LIMIT 5`;
+    const kpis = `SELECT (SELECT COUNT(*) FROM ordenes_trabajo) as ots, IFNULL((SELECT SUM(total_facturado) FROM ordenes_trabajo), 0) as total, (SELECT COUNT(*) FROM vehiculos) as flota`;
+    const chart = `SELECT v.modelo as name, SUM(ot.total_facturado) as valor FROM vehiculos v JOIN ordenes_trabajo ot ON v.id_vehiculo = ot.id_vehiculo GROUP BY v.modelo ORDER BY valor DESC LIMIT 5`;
 
-    db.query(kpisQuery, (err1, resultKpis) => {
-        if (err1) {
-            console.error("Error KPIs:", err1);
-            return res.json({ kpis: { ots: 0, total: 0, flota: 0 }, chartVehiculos: [] });
-        }
-        db.query(chartQuery, (err2, resultChart) => {
-            if (err2) console.error("Error Chart:", err2);
-            res.json({ kpis: resultKpis[0], chartVehiculos: resultChart || [] });
+    db.query(kpis, (err1, rKpis) => {
+        if (err1) return res.json({ kpis: {ots:0, total:0, flota:0}, chartVehiculos: [] });
+        db.query(chart, (err2, rChart) => {
+            res.json({ kpis: rKpis[0], chartVehiculos: rChart || [] });
         });
     });
 });
 
-// =======================================================
-// MÓDULO 2: CLIENTES (CRUD COMPLETO)
-// =======================================================
+// --- CLIENTES CRUD ---
 
-// LEER (GET)
+// LEER
 app.get('/api/clientes', (req, res) => {
     db.query("SELECT * FROM clientes ORDER BY id_cliente DESC", (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) return res.status(500).json({error: err.message});
         res.json(rows || []);
     });
 });
 
-// CREAR (POST)
+// CREAR
 app.post('/api/clientes', (req, res) => {
     const { nombre, nombre_completo, email, telefono } = req.body;
     const nombreFinal = nombre || nombre_completo;
-
-    if (!nombreFinal) return res.status(400).json({ error: "Falta nombre" });
+    if (!nombreFinal) return res.status(400).json({error: "Falta nombre"});
 
     const sql = "INSERT INTO clientes (nombre_completo, email, telefono) VALUES (?, ?, ?)";
     db.query(sql, [nombreFinal, email, telefono || ''], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true, id: result.insertId });
+        if (err) return res.status(500).json({error: err.message});
+        res.json({success: true, id: result.insertId});
     });
 });
 
-// ACTUALIZAR (PUT)
+// ACTUALIZAR (UPDATE)
 app.put('/api/clientes/:id', (req, res) => {
     const { id } = req.params;
     const { nombre, nombre_completo, email, telefono } = req.body;
     const nombreFinal = nombre || nombre_completo;
 
-    console.log(`🔄 UPDATE ID: ${id} -> ${nombreFinal}`);
+    console.log(`🔄 EDITAR ID: ${id}`);
 
     const sql = "UPDATE clientes SET nombre_completo = ?, email = ?, telefono = ? WHERE id_cliente = ?";
     db.query(sql, [nombreFinal, email, telefono, id], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: "Cliente no encontrado para actualizar" });
-        }
-        res.json({ success: true });
+        if (err) return res.status(500).json({error: err.message});
+        res.json({success: true});
     });
 });
 
 // ELIMINAR (DELETE)
 app.delete('/api/clientes/:id', (req, res) => {
     const { id } = req.params;
-    console.log(`🗑️ DELETE ID: ${id}`);
+    console.log(`🗑️ BORRAR ID: ${id}`);
 
     const sql = "DELETE FROM clientes WHERE id_cliente = ?";
     db.query(sql, [id], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: "Cliente no encontrado para eliminar" });
-        }
-        res.json({ success: true });
+        if (err) return res.status(500).json({error: err.message});
+        res.json({success: true});
     });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 SERVIDOR LISTO EN PUERTO ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
