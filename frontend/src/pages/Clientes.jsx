@@ -1,100 +1,177 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import MainLayout from '../components/Layout/MainLayout';
+import { Search, User, Edit, Trash2, UserPlus, X, Save } from 'lucide-react';
 
-// ⚠️ NO IMPORTAMOS MAINLAYOUT NI ICONOS PARA EVITAR BLOQUEOS VISUALES
-// USAMOS ESTILOS NATIVOS PARA ASEGURAR QUE EL CLICK LLEGUE
-
+// URL EXACTA
 const API_URL = 'https://taller-pv360-c69q.onrender.com/api/clientes';
 
 const Clientes = () => {
   const [clientes, setClientes] = useState([]);
-  const [error, setError] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+  
+  // ESTADOS MODAL
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [form, setForm] = useState({ id: '', nombre: '', email: '', telefono: '' });
 
-  // 1. CARGAR DATOS
-  useEffect(() => {
-    cargarClientes();
-  }, []);
-
+  // CARGAR DATOS
   const cargarClientes = async () => {
     try {
       const res = await axios.get(API_URL);
-      console.log("Datos:", res.data);
+      console.log("✅ VERSION FINAL ACTIVA - Datos:", res.data); // BUSCA ESTO EN LA CONSOLA
       setClientes(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      alert("Error cargando: " + err.message);
+    } catch (error) {
+      console.error("Error carga:", error);
     }
   };
 
-  // 2. ELIMINAR (DIRECTO Y SIN ESTILOS RAROS)
-  const eliminarAhora = async (id) => {
-    // ESTA ALERTA DEBE SALIR SI O SI
-    alert(`¡CLICK RECIBIDO! Intentando borrar ID: ${id}`);
+  useEffect(() => { cargarClientes(); }, []);
+
+  // ELIMINAR
+  const handleEliminar = async (id, nombre) => {
+    console.log("🔥 CLICK ELIMINAR EN ID:", id); // SI NO SALE ESTO, ES LA VERSION VIEJA
+    
+    if (!id) return alert("Error: ID no detectado");
+    
+    if (!window.confirm(`¿BORRAR DEFINITIVAMENTE A: ${nombre}?`)) return;
 
     try {
       await axios.delete(`${API_URL}/${id}`);
-      alert("✅ SERVIDOR RESPONDIÓ: Eliminado correctamente");
+      alert("🗑️ Eliminado correctamente");
       cargarClientes();
-    } catch (err) {
-      alert("❌ ERROR DEL SERVIDOR: " + err.message);
-      console.error(err);
+    } catch (error) {
+      alert("Error al eliminar");
     }
   };
 
+  // ABRIR MODAL
+  const abrirModal = (cli = null) => {
+    if (cli) {
+      setModoEdicion(true);
+      setForm({
+        id: cli.id_cliente,
+        nombre: cli.nombre_completo,
+        email: cli.email || '',
+        telefono: cli.telefono || ''
+      });
+    } else {
+      setModoEdicion(false);
+      setForm({ id: '', nombre: '', email: '', telefono: '' });
+    }
+    setModalAbierto(true);
+  };
+
+  // GUARDAR
+  const handleGuardar = async (e) => {
+    e.preventDefault();
+    const datos = {
+        nombre_completo: form.nombre,
+        email: form.email,
+        telefono: form.telefono
+    };
+
+    try {
+      if (modoEdicion) {
+        await axios.put(`${API_URL}/${form.id}`, datos);
+        alert("✅ Editado con éxito");
+      } else {
+        await axios.post(API_URL, datos);
+        alert("✅ Creado con éxito");
+      }
+      setModalAbierto(false);
+      cargarClientes();
+    } catch (error) {
+      alert("Error al guardar");
+    }
+  };
+
+  // FILTRO
+  const filtrados = clientes.filter(c => 
+    (c.nombre_completo || '').toLowerCase().includes(busqueda.toLowerCase())
+  );
+
   return (
-    <div style={{ padding: '20px', backgroundColor: 'white', color: 'black', height: '100vh', overflow: 'auto' }}>
-      <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>
-        PANEL DE CONTROL DE EMERGENCIA
-      </h1>
-      
-      <p style={{ marginBottom: '20px', color: 'red' }}>
-        Si estos botones funcionan, el problema era que tu diseño anterior tapaba los clicks.
-      </p>
+    <MainLayout>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-white">
+          CLIENTES <span className="text-sm text-green-400">(VERSIÓN FINAL)</span>
+        </h1>
+        <button onClick={() => abrirModal(null)} className="bg-blue-600 text-white px-4 py-2 rounded flex gap-2">
+          <UserPlus/> Nuevo
+        </button>
+      </div>
 
-      <button 
-        onClick={cargarClientes}
-        style={{ padding: '10px 20px', backgroundColor: 'blue', color: 'white', marginBottom: '20px', cursor: 'pointer' }}
-      >
-        RECARGAR DATOS MANUALMENTE
-      </button>
+      <div className="bg-slate-800 p-2 rounded mb-4 flex border border-slate-700">
+         <Search className="text-slate-400 mr-2"/>
+         <input className="bg-transparent text-white w-full outline-none" 
+           placeholder="Buscar..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+      </div>
 
-      <table border="1" cellPadding="10" style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#eee' }}>
-            <th>ID</th>
-            <th>NOMBRE</th>
-            <th>EMAIL</th>
-            <th>ACCIÓN DE BORRADO</th>
-          </tr>
-        </thead>
-        <tbody>
-          {clientes.map((cli) => (
-            <tr key={cli.id_cliente}>
-              <td>{cli.id_cliente}</td>
-              <td>{cli.nombre_completo}</td>
-              <td>{cli.email}</td>
-              <td style={{ textAlign: 'center' }}>
-                {/* BOTÓN HTML PURO - IMPOSIBLE DE BLOQUEAR */}
-                <button
-                  onClick={() => eliminarAhora(cli.id_cliente)}
-                  style={{
-                    backgroundColor: 'red',
-                    color: 'white',
-                    padding: '10px 20px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    zIndex: 9999, // FORZAMOS QUE ESTÉ ENCIMA DE TODO
-                    position: 'relative'
-                  }}
-                >
-                  ELIMINAR AL #{cli.id_cliente}
-                </button>
-              </td>
+      <div className="bg-slate-900 rounded-xl border border-slate-800 h-[500px] overflow-y-auto">
+        <table className="w-full text-left text-slate-400">
+          <thead className="bg-slate-950 text-white sticky top-0 uppercase text-xs">
+            <tr>
+              <th className="p-4">ID</th>
+              <th className="p-4">Nombre</th>
+              <th className="p-4">Datos</th>
+              <th className="p-4 text-center">Acciones</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {filtrados.map((cli) => (
+              <tr key={cli.id_cliente} className="hover:bg-slate-800">
+                <td className="p-4">#{cli.id_cliente}</td>
+                <td className="p-4 text-white font-bold">{cli.nombre_completo}</td>
+                <td className="p-4 text-sm">
+                    <div>{cli.email}</div>
+                    <div>{cli.telefono}</div>
+                </td>
+                <td className="p-4 text-center">
+                  <div className="flex justify-center gap-4">
+                    
+                    {/* BOTÓN EDITAR - CON ONCLICK EXPLICITO */}
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); abrirModal(cli); }}
+                      className="bg-blue-900 text-blue-300 p-2 rounded hover:bg-blue-700"
+                    >
+                      <Edit size={18}/>
+                    </button>
+
+                    {/* BOTÓN ELIMINAR - CON ONCLICK EXPLICITO */}
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleEliminar(cli.id_cliente, cli.nombre_completo); }}
+                      className="bg-red-900 text-red-300 p-2 rounded hover:bg-red-700"
+                    >
+                      <Trash2 size={18}/>
+                    </button>
+
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MODAL */}
+      {modalAbierto && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 p-6 rounded-lg w-full max-w-md border border-slate-700">
+            <h2 className="text-white text-xl font-bold mb-4">{modoEdicion ? 'Editar' : 'Nuevo'}</h2>
+            <form onSubmit={handleGuardar} className="space-y-3">
+              <input className="w-full bg-slate-950 text-white p-2 rounded border border-slate-700" placeholder="Nombre" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} required/>
+              <input className="w-full bg-slate-950 text-white p-2 rounded border border-slate-700" placeholder="Email" value={form.email} onChange={e => setForm({...form, email: e.target.value})}/>
+              <input className="w-full bg-slate-950 text-white p-2 rounded border border-slate-700" placeholder="Teléfono" value={form.telefono} onChange={e => setForm({...form, telefono: e.target.value})}/>
+              <div className="flex gap-2 mt-4">
+                  <button type="button" onClick={() => setModalAbierto(false)} className="bg-gray-600 text-white p-2 rounded flex-1">Cancelar</button>
+                  <button type="submit" className="bg-blue-600 text-white p-2 rounded flex-1">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </MainLayout>
   );
 };
 
