@@ -22,30 +22,75 @@ const db = mysql.createPool({
     keepAliveInitialDelay: 0
 });
 
-console.log("✅ SERVIDOR V8.0 - FINAL (Estado -> estado_pago)");
+console.log("✅ SERVIDOR V9.0 - DASHBOARD ANALYTICS PRO");
 
-// --- RUTAS ---
+// --- RUTAS API ---
 
-app.get('/', (req, res) => res.send('API PV360 ONLINE v8.0'));
+app.get('/', (req, res) => res.send('API PV360 ONLINE v9.0'));
 
-// 1. ANALYTICS
+// 1. ANALYTICS AVANZADO (NUEVO)
 app.get('/api/analytics', (req, res) => {
-    const kpis = `SELECT (SELECT COUNT(*) FROM ordenes_trabajo) as ots, IFNULL((SELECT SUM(total_facturado) FROM ordenes_trabajo), 0) as total, (SELECT COUNT(*) FROM vehiculos) as flota`;
-    const chart = `SELECT v.modelo as name, SUM(ot.total_facturado) as valor FROM vehiculos v JOIN ordenes_trabajo ot ON v.id_vehiculo = ot.id_vehiculo GROUP BY v.modelo ORDER BY valor DESC LIMIT 5`;
+    // A. KPIs Generales
+    const sqlKPIs = `
+        SELECT 
+            (SELECT COUNT(*) FROM ordenes_trabajo) as ots, 
+            IFNULL((SELECT SUM(total_facturado) FROM ordenes_trabajo), 0) as total, 
+            (SELECT COUNT(*) FROM vehiculos) as flota,
+            (SELECT COUNT(*) FROM clientes) as clientes
+    `;
 
-    db.query(kpis, (err1, rKpis) => {
-        if (err1) return res.json({ kpis: {ots:0, total:0, flota:0}, chartVehiculos: [] });
-        db.query(chart, (err2, rChart) => {
-            res.json({ kpis: rKpis[0], chartVehiculos: rChart || [] });
+    // B. Gráfico 1: Ingresos por Mes (Curva de Tendencia)
+    // Agrupa por mes (YYYY-MM) usando tu columna 'fecha'
+    const sqlIngresos = `
+        SELECT DATE_FORMAT(fecha, '%Y-%m') as mes, SUM(total_facturado) as total 
+        FROM ordenes_trabajo 
+        GROUP BY mes 
+        ORDER BY mes ASC 
+        LIMIT 6
+    `;
+
+    // C. Gráfico 2: Marcas Más Atendidas (Ranking)
+    // Conecta ordenes con vehiculos para ver qué marcas facturan más
+    const sqlMarcas = `
+        SELECT v.marca as name, COUNT(ot.id_ot) as cantidad, SUM(ot.total_facturado) as ventas
+        FROM ordenes_trabajo ot 
+        JOIN vehiculos v ON ot.id_vehiculo = v.id_vehiculo 
+        GROUP BY v.marca 
+        ORDER BY cantidad DESC 
+        LIMIT 5
+    `;
+
+    // D. Gráfico 3: Estado de Caja (Donut)
+    // Usa tu columna real 'estado_pago'
+    const sqlEstados = `
+        SELECT estado_pago as name, COUNT(*) as value 
+        FROM ordenes_trabajo 
+        GROUP BY estado_pago
+    `;
+
+    // Ejecución en cascada
+    db.query(sqlKPIs, (err, rKPIs) => {
+        if (err) return res.json({ kpis: {}, chartIngresos: [], chartMarcas: [], chartEstados: [] });
+        
+        db.query(sqlIngresos, (err2, rIngresos) => {
+            db.query(sqlMarcas, (err3, rMarcas) => {
+                db.query(sqlEstados, (err4, rEstados) => {
+                    res.json({
+                        kpis: rKPIs[0] || { ots:0, total:0, flota:0, clientes:0 },
+                        chartIngresos: rIngresos || [],
+                        chartMarcas: rMarcas || [],
+                        chartEstados: rEstados || []
+                    });
+                });
+            });
         });
     });
 });
 
-// 2. CLIENTES
+// 2. CLIENTES CRUD
 app.get('/api/clientes', (req, res) => {
     db.query("SELECT * FROM clientes ORDER BY id_cliente DESC", (err, rows) => res.json(rows || []));
 });
-
 app.post('/api/clientes', (req, res) => {
     const { nombre, nombre_completo, email, telefono } = req.body;
     const nombreFinal = nombre || nombre_completo;
@@ -53,58 +98,28 @@ app.post('/api/clientes', (req, res) => {
     db.query("INSERT INTO clientes (nombre_completo, email, telefono) VALUES (?, ?, ?)", 
         [nombreFinal, email, telefono || ''], (err, result) => res.json({success: true, id: result.insertId}));
 });
-
 app.put('/api/clientes/:id', (req, res) => {
     const { nombre, nombre_completo, email, telefono } = req.body;
     db.query("UPDATE clientes SET nombre_completo = ?, email = ?, telefono = ? WHERE id_cliente = ?", 
         [nombre || nombre_completo, email, telefono, req.params.id], (err) => res.json({success: true}));
 });
-
 app.delete('/api/clientes/:id', (req, res) => {
     db.query("DELETE FROM clientes WHERE id_cliente = ?", [req.params.id], (err) => res.json({success: true}));
 });
 
-// ==========================================
-// 3. ÓRDENES DE TRABAJO (CORREGIDO 'estado_pago')
-// ==========================================
-
-// LEER
+// 3. ÓRDENES DE TRABAJO
 app.get('/api/ordenes', (req, res) => {
-    // 1. Leemos 'diagnostico_software' como 'detalle'
-    // 2. Leemos 'estado_pago' como 'estado'
-    // Esto hace que el frontend entienda los datos sin cambiar nada visual
-    const sql = `
-        SELECT ot.id_ot, c.nombre_completo, ot.diagnostico_software as detalle, ot.total_facturado, ot.estado_pago as estado, ot.fecha 
-        FROM ordenes_trabajo ot 
-        LEFT JOIN clientes c ON ot.id_cliente = c.id_cliente 
-        ORDER BY ot.id_ot DESC LIMIT 50
-    `;
-    db.query(sql, (err, rows) => {
-        if (err) console.error(err);
-        res.json(rows || []);
-    });
+    const sql = `SELECT ot.id_ot, c.nombre_completo, ot.diagnostico_software as detalle, ot.total_facturado, ot.estado_pago as estado, ot.fecha FROM ordenes_trabajo ot LEFT JOIN clientes c ON ot.id_cliente = c.id_cliente ORDER BY ot.id_ot DESC LIMIT 50`;
+    db.query(sql, (err, rows) => res.json(rows || []));
 });
-
-// CREAR (AQUÍ ESTABA EL ERROR)
 app.post('/api/ordenes', (req, res) => {
     const { id_cliente, detalle, total_facturado, estado } = req.body;
-    
-    // CORRECCIÓN: Usamos 'estado_pago' en lugar de 'estado' para coincidir con tu tabla
-    const sql = `
-        INSERT INTO ordenes_trabajo 
-        (id_cliente, diagnostico_software, total_facturado, estado_pago, fecha, id_vehiculo, id_empleado, id_tecnico, id_asesor) 
-        VALUES (?, ?, ?, ?, NOW(), 1, 1, 1, 1)
-    `;
-
-    // Mapeamos las variables del frontend a las columnas de la DB:
-    // detalle -> diagnostico_software
-    // estado  -> estado_pago
+    const sql = `INSERT INTO ordenes_trabajo (id_cliente, diagnostico_software, total_facturado, estado_pago, fecha, id_vehiculo, id_empleado, id_tecnico, id_asesor) VALUES (?, ?, ?, ?, NOW(), 1, 1, 1, 1)`;
     db.query(sql, [id_cliente, detalle, total_facturado || 0, estado || 'Pendiente'], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: result.insertId });
     });
 });
-
 app.delete('/api/ordenes/:id', (req, res) => {
     db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => res.json({success: true}));
 });
@@ -128,7 +143,6 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename=Ficha_${cliente.nombre_completo.replace(/ /g,'_')}.pdf`);
         doc.pipe(res);
         doc.fontSize(20).text('FICHA DE CLIENTE', { align: 'center' });
-        doc.moveDown();
         doc.text(`Cliente: ${cliente.nombre_completo}`);
         doc.end();
     });
