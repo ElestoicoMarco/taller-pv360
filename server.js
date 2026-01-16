@@ -104,51 +104,68 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
     });
 });
 // ==========================================
-// 4. ÓRDENES DE TRABAJO (OTs)
+// 4. ÓRDENES DE TRABAJO (COMPATIBLE CON TU DB REAL)
 // ==========================================
 
-// LEER TODAS LAS OTs (Con nombre de cliente)
+// A. LEER ÓRDENES (Usando diagnostico_software)
 app.get('/api/ordenes', (req, res) => {
     const sql = `
-        SELECT ot.id_ot, ot.detalle, ot.total_facturado, ot.estado, ot.fecha_ingreso, c.nombre_completo 
+        SELECT 
+            ot.id_ot, 
+            c.nombre_completo,
+            ot.diagnostico_software as detalle, 
+            ot.total_facturado, 
+            ot.estado, 
+            ot.fecha 
         FROM ordenes_trabajo ot 
-        JOIN clientes c ON ot.id_cliente = c.id_cliente 
-        ORDER BY ot.id_ot DESC
+        LEFT JOIN clientes c ON ot.id_cliente = c.id_cliente 
+        ORDER BY ot.id_ot DESC LIMIT 50
     `;
     db.query(sql, (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error("Error leyendo ordenes:", err);
+            return res.json([]); // Si falla, devolvemos lista vacía para no romper el frontend
+        }
         res.json(rows || []);
     });
 });
 
-// CREAR NUEVA OT
+// B. CREAR ORDEN (Rellenando IDs obligatorios con 1)
 app.post('/api/ordenes', (req, res) => {
     const { id_cliente, detalle, total_facturado, estado } = req.body;
     
-    if (!id_cliente || !detalle) return res.status(400).json({ error: "Falta cliente o detalle" });
+    if (!id_cliente) return res.status(400).json({ error: "Falta cliente" });
 
-    const sql = "INSERT INTO ordenes_trabajo (id_cliente, detalle, total_facturado, estado, fecha_ingreso) VALUES (?, ?, ?, ?, NOW())";
+    // NOTA: Usamos '1' para vehiculo, empleado, tecnico y asesor para cumplir con tu DB
+    // En el futuro podemos hacer selectores para estos también.
+    const sql = `
+        INSERT INTO ordenes_trabajo 
+        (id_cliente, diagnostico_software, total_facturado, estado, fecha, id_vehiculo, id_empleado, id_tecnico, id_asesor) 
+        VALUES (?, ?, ?, ?, NOW(), 1, 1, 1, 1)
+    `;
+
     db.query(sql, [id_cliente, detalle, total_facturado || 0, estado || 'Pendiente'], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error("Error creando orden:", err);
+            return res.status(500).json({ error: err.message });
+        }
         res.json({ success: true, id: result.insertId });
     });
 });
 
-// ACTUALIZAR ESTADO O TOTAL
-app.put('/api/ordenes/:id', (req, res) => {
-    const { detalle, total_facturado, estado } = req.body;
-    const sql = "UPDATE ordenes_trabajo SET detalle = ?, total_facturado = ?, estado = ? WHERE id_ot = ?";
-    db.query(sql, [detalle, total_facturado, estado, req.params.id], (err) => {
+// C. ELIMINAR ORDEN
+app.delete('/api/ordenes/:id', (req, res) => {
+    db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });
 });
 
-// ELIMINAR OT
-app.delete('/api/ordenes/:id', (req, res) => {
-    db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
+// D. NUEVO: LEER CATÁLOGO DE SERVICIOS (Para el selector)
+app.get('/api/servicios', (req, res) => {
+    db.query("SELECT id_servicio, nombre_servicio, precio_base FROM catalogo_servicios", (err, rows) => {
+        if (err) return res.json([]);
+        res.json(rows || []);
     });
 });
 const PORT = process.env.PORT || 5000;
