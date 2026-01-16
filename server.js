@@ -10,10 +10,10 @@ app.use(express.json());
 
 // CONFIGURACIÓN DE BASE DE DATOS
 const db = mysql.createPool({
-    host: process.env.DB_HOST,      
-    user: process.env.DB_USER,      
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,  
+    database: process.env.DB_NAME,
     port: process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 5,
@@ -22,10 +22,11 @@ const db = mysql.createPool({
     keepAliveInitialDelay: 0
 });
 
-console.log("✅ SERVIDOR CORRIGIDO (Diagnostico_Software + Catálogo)");
+console.log("✅ SERVIDOR V8.0 - FINAL (Estado -> estado_pago)");
 
-// --- RUTAS BÁSICAS ---
-app.get('/', (req, res) => res.send('API PV360 v5.0 ONLINE'));
+// --- RUTAS ---
+
+app.get('/', (req, res) => res.send('API PV360 ONLINE v8.0'));
 
 // 1. ANALYTICS
 app.get('/api/analytics', (req, res) => {
@@ -49,7 +50,6 @@ app.post('/api/clientes', (req, res) => {
     const { nombre, nombre_completo, email, telefono } = req.body;
     const nombreFinal = nombre || nombre_completo;
     if (!nombreFinal) return res.status(400).json({error: "Falta nombre"});
-    
     db.query("INSERT INTO clientes (nombre_completo, email, telefono) VALUES (?, ?, ?)", 
         [nombreFinal, email, telefono || ''], (err, result) => res.json({success: true, id: result.insertId}));
 });
@@ -65,34 +65,42 @@ app.delete('/api/clientes/:id', (req, res) => {
 });
 
 // ==========================================
-// 3. ÓRDENES DE TRABAJO (CORREGIDO)
+// 3. ÓRDENES DE TRABAJO (CORREGIDO 'estado_pago')
 // ==========================================
 
-// LEER (Mapeamos diagnostico_software -> detalle para el frontend)
+// LEER
 app.get('/api/ordenes', (req, res) => {
+    // 1. Leemos 'diagnostico_software' como 'detalle'
+    // 2. Leemos 'estado_pago' como 'estado'
+    // Esto hace que el frontend entienda los datos sin cambiar nada visual
     const sql = `
-        SELECT ot.id_ot, c.nombre_completo, ot.diagnostico_software as detalle, ot.total_facturado, ot.estado, ot.fecha 
+        SELECT ot.id_ot, c.nombre_completo, ot.diagnostico_software as detalle, ot.total_facturado, ot.estado_pago as estado, ot.fecha 
         FROM ordenes_trabajo ot 
         LEFT JOIN clientes c ON ot.id_cliente = c.id_cliente 
         ORDER BY ot.id_ot DESC LIMIT 50
     `;
-    db.query(sql, (err, rows) => res.json(rows || []));
+    db.query(sql, (err, rows) => {
+        if (err) console.error(err);
+        res.json(rows || []);
+    });
 });
 
-// CREAR (AQUÍ ESTABA EL ERROR: Usamos 'diagnostico_software')
+// CREAR (AQUÍ ESTABA EL ERROR)
 app.post('/api/ordenes', (req, res) => {
     const { id_cliente, detalle, total_facturado, estado } = req.body;
     
-    // Validamos IDs por defecto (Usamos 1 porque vi en tus fotos que existen el empleado #1 y vehiculo #1)
+    // CORRECCIÓN: Usamos 'estado_pago' en lugar de 'estado' para coincidir con tu tabla
     const sql = `
         INSERT INTO ordenes_trabajo 
-        (id_cliente, diagnostico_software, total_facturado, estado, fecha, id_vehiculo, id_empleado, id_tecnico, id_asesor) 
+        (id_cliente, diagnostico_software, total_facturado, estado_pago, fecha, id_vehiculo, id_empleado, id_tecnico, id_asesor) 
         VALUES (?, ?, ?, ?, NOW(), 1, 1, 1, 1)
     `;
 
-    // Pasamos la variable 'detalle' (del frontend) a la columna 'diagnostico_software' (de la DB)
+    // Mapeamos las variables del frontend a las columnas de la DB:
+    // detalle -> diagnostico_software
+    // estado  -> estado_pago
     db.query(sql, [id_cliente, detalle, total_facturado || 0, estado || 'Pendiente'], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message }); // Esto te dirá el error exacto si falla
+        if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: result.insertId });
     });
 });
@@ -101,18 +109,15 @@ app.delete('/api/ordenes/:id', (req, res) => {
     db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => res.json({success: true}));
 });
 
-// ==========================================
-// 4. CATÁLOGO DE SERVICIOS (NUEVO)
-// ==========================================
+// 4. CATÁLOGO
 app.get('/api/servicios', (req, res) => {
-    // Usamos las columnas que vi en tu foto: nombre_servicio, precio_base
     db.query("SELECT id_servicio, nombre_servicio, precio_base FROM catalogo_servicios", (err, rows) => {
         if (err) return res.json([]);
         res.json(rows || []);
     });
 });
 
-// 5. REPORTES PDF
+// 5. REPORTES
 app.get('/api/reportes/cliente/:id', (req, res) => {
     const clientId = req.params.id;
     db.query("SELECT * FROM clientes WHERE id_cliente = ?", [clientId], (err, rows) => {
@@ -125,7 +130,6 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
         doc.fontSize(20).text('FICHA DE CLIENTE', { align: 'center' });
         doc.moveDown();
         doc.text(`Cliente: ${cliente.nombre_completo}`);
-        doc.text(`Teléfono: ${cliente.telefono}`);
         doc.end();
     });
 });
