@@ -1,20 +1,19 @@
+require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
-const PDFDocument = require('pdfkit'); // Asegúrate de haber instalado: npm install pdfkit
+const PDFDocument = require('pdfkit');
 
 const app = express();
-
-// IMPORTANTE: CORS permite que tu hosting de archivos hable con Render
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// CONFIGURACIÓN BASE DE DATOS
+// CONFIGURACIÓN DE BASE DE DATOS
 const db = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '040407mgLl',
-    database: process.env.DB_NAME || 'Post_venta_360',
+    host: process.env.DB_HOST,      
+    user: process.env.DB_USER,      
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,  
     port: process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 5,
@@ -23,14 +22,12 @@ const db = mysql.createPool({
     keepAliveInitialDelay: 0
 });
 
-console.log("✅ API BACKEND ACTIVA (MODO PURO)");
+console.log("✅ SERVIDOR CORRIGIDO (Diagnostico_Software + Catálogo)");
 
-// RUTA DE SALUD
-app.get('/', (req, res) => res.send('API PV360 FUNCIONANDO - CONECTE DESDE EL FRONTEND'));
+// --- RUTAS BÁSICAS ---
+app.get('/', (req, res) => res.send('API PV360 v5.0 ONLINE'));
 
-// ==========================================
-// 1. ANALYTICS (DASHBOARD)
-// ==========================================
+// 1. ANALYTICS
 app.get('/api/analytics', (req, res) => {
     const kpis = `SELECT (SELECT COUNT(*) FROM ordenes_trabajo) as ots, IFNULL((SELECT SUM(total_facturado) FROM ordenes_trabajo), 0) as total, (SELECT COUNT(*) FROM vehiculos) as flota`;
     const chart = `SELECT v.modelo as name, SUM(ot.total_facturado) as valor FROM vehiculos v JOIN ordenes_trabajo ot ON v.id_vehiculo = ot.id_vehiculo GROUP BY v.modelo ORDER BY valor DESC LIMIT 5`;
@@ -43,9 +40,7 @@ app.get('/api/analytics', (req, res) => {
     });
 });
 
-// ==========================================
-// 2. CLIENTES (CRUD)
-// ==========================================
+// 2. CLIENTES
 app.get('/api/clientes', (req, res) => {
     db.query("SELECT * FROM clientes ORDER BY id_cliente DESC", (err, rows) => res.json(rows || []));
 });
@@ -70,103 +65,70 @@ app.delete('/api/clientes/:id', (req, res) => {
 });
 
 // ==========================================
-// 3. REPORTES PDF
-// ==========================================
-app.get('/api/reportes/cliente/:id', (req, res) => {
-    const clientId = req.params.id;
-    db.query("SELECT * FROM clientes WHERE id_cliente = ?", [clientId], (err, rows) => {
-        if (err || rows.length === 0) return res.status(404).send("Cliente no encontrado");
-
-        const cliente = rows[0];
-        const doc = new PDFDocument();
-
-        // Cabeceras para descarga
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=Ficha_${cliente.nombre_completo.replace(/ /g,'_')}.pdf`);
-
-        doc.pipe(res);
-
-        // Contenido del PDF
-        doc.fontSize(20).text('PV360 - FICHA DE CLIENTE', { align: 'center' });
-        doc.moveDown();
-        doc.fontSize(12).text(`Fecha: ${new Date().toLocaleDateString()}`, { align: 'right' });
-        doc.rect(50, 130, 500, 2).fill('#3b82f6');
-        doc.moveDown(2);
-        
-        doc.fillColor('black').fontSize(14).text(`DATOS DEL CLIENTE`, { bold: true });
-        doc.moveDown(0.5);
-        doc.fontSize(12).text(`ID Sistema: #${cliente.id_cliente}`);
-        doc.text(`Nombre: ${cliente.nombre_completo}`);
-        doc.text(`Email: ${cliente.email || '---'}`);
-        doc.text(`Teléfono: ${cliente.telefono || '---'}`);
-        
-        doc.end();
-    });
-});
-// ==========================================
-// 4. ÓRDENES DE TRABAJO (COMPATIBLE CON TU DB REAL)
+// 3. ÓRDENES DE TRABAJO (CORREGIDO)
 // ==========================================
 
-// A. LEER ÓRDENES (Usando diagnostico_software)
+// LEER (Mapeamos diagnostico_software -> detalle para el frontend)
 app.get('/api/ordenes', (req, res) => {
     const sql = `
-        SELECT 
-            ot.id_ot, 
-            c.nombre_completo,
-            ot.diagnostico_software as detalle, 
-            ot.total_facturado, 
-            ot.estado, 
-            ot.fecha 
+        SELECT ot.id_ot, c.nombre_completo, ot.diagnostico_software as detalle, ot.total_facturado, ot.estado, ot.fecha 
         FROM ordenes_trabajo ot 
         LEFT JOIN clientes c ON ot.id_cliente = c.id_cliente 
         ORDER BY ot.id_ot DESC LIMIT 50
     `;
-    db.query(sql, (err, rows) => {
-        if (err) {
-            console.error("Error leyendo ordenes:", err);
-            return res.json([]); // Si falla, devolvemos lista vacía para no romper el frontend
-        }
-        res.json(rows || []);
-    });
+    db.query(sql, (err, rows) => res.json(rows || []));
 });
 
-// B. CREAR ORDEN (Rellenando IDs obligatorios con 1)
+// CREAR (AQUÍ ESTABA EL ERROR: Usamos 'diagnostico_software')
 app.post('/api/ordenes', (req, res) => {
     const { id_cliente, detalle, total_facturado, estado } = req.body;
     
-    if (!id_cliente) return res.status(400).json({ error: "Falta cliente" });
-
-    // NOTA: Usamos '1' para vehiculo, empleado, tecnico y asesor para cumplir con tu DB
-    // En el futuro podemos hacer selectores para estos también.
+    // Validamos IDs por defecto (Usamos 1 porque vi en tus fotos que existen el empleado #1 y vehiculo #1)
     const sql = `
         INSERT INTO ordenes_trabajo 
         (id_cliente, diagnostico_software, total_facturado, estado, fecha, id_vehiculo, id_empleado, id_tecnico, id_asesor) 
         VALUES (?, ?, ?, ?, NOW(), 1, 1, 1, 1)
     `;
 
+    // Pasamos la variable 'detalle' (del frontend) a la columna 'diagnostico_software' (de la DB)
     db.query(sql, [id_cliente, detalle, total_facturado || 0, estado || 'Pendiente'], (err, result) => {
-        if (err) {
-            console.error("Error creando orden:", err);
-            return res.status(500).json({ error: err.message });
-        }
+        if (err) return res.status(500).json({ error: err.message }); // Esto te dirá el error exacto si falla
         res.json({ success: true, id: result.insertId });
     });
 });
 
-// C. ELIMINAR ORDEN
 app.delete('/api/ordenes/:id', (req, res) => {
-    db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
-    });
+    db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => res.json({success: true}));
 });
 
-// D. NUEVO: LEER CATÁLOGO DE SERVICIOS (Para el selector)
+// ==========================================
+// 4. CATÁLOGO DE SERVICIOS (NUEVO)
+// ==========================================
 app.get('/api/servicios', (req, res) => {
+    // Usamos las columnas que vi en tu foto: nombre_servicio, precio_base
     db.query("SELECT id_servicio, nombre_servicio, precio_base FROM catalogo_servicios", (err, rows) => {
         if (err) return res.json([]);
         res.json(rows || []);
     });
 });
+
+// 5. REPORTES PDF
+app.get('/api/reportes/cliente/:id', (req, res) => {
+    const clientId = req.params.id;
+    db.query("SELECT * FROM clientes WHERE id_cliente = ?", [clientId], (err, rows) => {
+        if (err || rows.length === 0) return res.status(404).send("Cliente no encontrado");
+        const cliente = rows[0];
+        const doc = new PDFDocument();
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=Ficha_${cliente.nombre_completo.replace(/ /g,'_')}.pdf`);
+        doc.pipe(res);
+        doc.fontSize(20).text('FICHA DE CLIENTE', { align: 'center' });
+        doc.moveDown();
+        doc.text(`Cliente: ${cliente.nombre_completo}`);
+        doc.text(`Teléfono: ${cliente.telefono}`);
+        doc.end();
+    });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Puerto ${PORT}`));
