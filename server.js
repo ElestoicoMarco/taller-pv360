@@ -225,24 +225,37 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
 
                 // Fondo alternado para filas
                 if (index % 2 === 0) {
-                    doc.rect(50, yPosition - 5, 500, 30).fill('#F8FAFC'); 
+                    doc.rect(50, yPosition - 5, 500, 35).fill('#F8FAFC'); // Aumenté un poco la altura del fondo por si acaso
                 }
 
                 doc.fillColor('#0F172A').fontSize(9);
                 
-                // Fecha
+                // 1. Fecha
                 const fechaFormat = new Date(item.fecha).toLocaleDateString();
                 doc.text(fechaFormat, 60, yPosition);
 
-                // Vehículo (Marca Modelo + Patente)
+                // 2. Vehículo (CORRECCIÓN DE FORMATO: Aumentar ancho)
                 const vehiculoInfo = item.marca ? `${item.marca} ${item.modelo}` : 'Vehículo Genérico';
-                doc.text(vehiculoInfo, 160, yPosition, { width: 120 });
+                // CAMBIO: Se aumentó width de 120 a 135 para evitar superposición en nombres largos
+                doc.text(vehiculoInfo, 160, yPosition, { width: 135 }); 
                 doc.fontSize(7).fillColor('#64748B').text(item.patente || 'S/P', 160, yPosition + 10);
 
-                // Servicio
-                doc.fontSize(9).fillColor('#0F172A').text(item.diagnostico_software || 'Sin detalle', 300, yPosition, { width: 150 });
+                // 3. Servicio (CORRECCIÓN DE DATOS: Decodificar 0 y 1)
+                doc.fontSize(9).fillColor('#0F172A');
+                
+                let servicioTexto = item.diagnostico_software || 'Sin detalle';
+                
+                // Lógica para interpretar los códigos según tu indicación
+                if (servicioTexto == '0') {
+                    servicioTexto = 'Servicio Mecánico (Sin Req. Software)';
+                } else if (servicioTexto == '1') {
+                    servicioTexto = 'Servicio con Diagnóstico de Software';
+                }
+                // Si no es 0 ni 1, muestra el texto original (ej: "Cambio de Pastillas")
 
-                // Monto y Estado
+                doc.text(servicioTexto, 300, yPosition, { width: 150 });
+
+                // 4. Monto y Estado
                 doc.text(`$${Number(item.total_facturado).toLocaleString('es-AR')}`, 460, yPosition, { align: 'right' });
                 
                 const estadoTexto = item.estado_pago || 'Pendiente';
