@@ -1,24 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { DollarSign, Activity, Users, CheckCircle, Plus } from 'lucide-react';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  BarChart, Bar, Cell, PieChart, Pie, Legend 
+} from 'recharts';
+import { DollarSign, Activity, Users, CheckCircle, Plus, Car, TrendingUp } from 'lucide-react';
 import MainLayout from '../components/Layout/MainLayout';
 
-// Colores para el gráfico (Estilo Neón/Oscuro)
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+// COLORES MODERNOS
+const COLORS_DONUT = ['#10B981', '#F59E0B', '#EF4444', '#3B82F6'];
 
 const Dashboard = () => {
-  // 1. ESTADOS
-  const [kpis, setKpis] = useState({ ots: 0, total: 0, flota: 0 });
-  const [chartData, setChartData] = useState([]);
+  // 1. ESTADOS (Adaptados a la nueva respuesta del backend v9.0)
+  const [data, setData] = useState({
+    kpis: { ots: 0, total: 0, flota: 0, clientes: 0 },
+    chartIngresos: [],
+    chartMarcas: [],
+    chartEstados: []
+  });
+  
   const [newCli, setNewCli] = useState({ nombre: '', email: '' });
+  const [loading, setLoading] = useState(true);
 
-  // 2. CARGA DE DATOS DESDE EL BACKEND
+  // 2. CARGA DE DATOS (Conecta con tu server v9.0)
   const loadDashboard = useCallback(async () => {
     try {
-      const resAna = await axios.get('https://taller-pv360-c69q.onrender.com/api/analytics');
-      setKpis(resAna.data.kpis || { ots: 0, total: 0, flota: 0 });
-      setChartData(resAna.data.chartVehiculos || []);
+      const res = await axios.get('https://taller-pv360-c69q.onrender.com/api/analytics');
+      // Si el backend devuelve estructura vieja o nueva, tratamos de adaptarnos, 
+      // pero idealmente esperamos la estructura v9.0
+      setData(res.data || { kpis: {}, chartIngresos: [], chartMarcas: [], chartEstados: [] });
+      setLoading(false);
     } catch (err) {
       console.error("Error cargando dashboard:", err);
     }
@@ -28,18 +39,16 @@ const Dashboard = () => {
     loadDashboard();
   }, [loadDashboard]);
 
-  // 3. GUARDAR CLIENTE (CON CORRECCIÓN DE ERROR "TELEFONO")
+  // 3. GUARDAR CLIENTE (TU LÓGICA INTACTA)
   const handleSaveClient = async (e) => {
     e.preventDefault();
     if (!newCli.nombre || !newCli.email) return alert("Por favor complete nombre y email");
 
     try {
-      // TRUCO: Enviamos un teléfono "ficticio" porque tu base de datos lo exige
-      // y este formulario nuevo no tiene ese campo visualmente.
       const payload = {
         nombre: newCli.nombre,
         email: newCli.email,
-        telefono: '0' // Esto evita el error: "Field telefono doesn't have a default value"
+        telefono: '0' // Hack para evitar error de DB
       };
 
       const res = await axios.post('https://taller-pv360-c69q.onrender.com/api/clientes', payload);
@@ -47,7 +56,7 @@ const Dashboard = () => {
       if (res.data.success) {
         setNewCli({ nombre: '', email: '' });
         alert("¡Cliente registrado con éxito!");
-        loadDashboard(); // Recargamos los datos para ver si suben los KPIs
+        loadDashboard(); 
       }
     } catch (err) {
       console.error(err);
@@ -55,69 +64,137 @@ const Dashboard = () => {
     }
   };
 
+  if (loading) return <MainLayout><div className="p-10 text-white">Cargando Panel de Control...</div></MainLayout>;
+
   return (
     <MainLayout>
       {/* CABECERA */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Resumen Ejecutivo</h1>
-          <p className="text-slate-400">Resultados en tiempo real 2025</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Panel de Control</h1>
+          <p className="text-slate-400">Resumen financiero y operativo en tiempo real</p>
         </div>
         <div className="bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full text-xs font-bold border border-emerald-500/20 flex items-center gap-2">
-          <CheckCircle size={14} /> MySQL Conectado
+          <CheckCircle size={14} /> Sistema Online v9.0
         </div>
       </div>
 
-      {/* TARJETAS DE KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* --- FILA 1: KPIs (TARJETAS) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KpiCard 
-          title="Facturación Bruta" 
-          value={`$ ${Number(kpis.total).toLocaleString('es-AR')}`} 
-          icon={<DollarSign className="text-blue-400" />} 
-          trend="+12% vs mes anterior"
+          title="Facturación Total" 
+          value={`$ ${Number(data.kpis.total || 0).toLocaleString('es-AR')}`} 
+          icon={<DollarSign size={24}/>} 
+          color="text-emerald-400" 
+          bg="bg-emerald-500/10" 
+          border="border-emerald-500/20"
         />
         <KpiCard 
-          title="Volumen Órdenes" 
-          value={kpis.ots} 
-          suffix="Servicios"
-          icon={<Activity className="text-emerald-400" />} 
-          trend="+5% vs mes anterior"
+          title="Órdenes Activas" 
+          value={data.kpis.ots || 0} 
+          icon={<Activity size={24}/>} 
+          color="text-blue-400" 
+          bg="bg-blue-500/10" 
+          border="border-blue-500/20"
         />
         <KpiCard 
-          title="Especialistas" 
-          value={kpis.staff || 0} 
-          suffix="Mecánicos"
-          icon={<Users className="text-orange-400" />} 
+          title="Flota Atendida" 
+          value={data.kpis.flota || 0} 
+          icon={<Car size={24}/>} 
+          color="text-orange-400" 
+          bg="bg-orange-500/10" 
+          border="border-orange-500/20"
+        />
+        <KpiCard 
+          title="Total Clientes" 
+          value={data.kpis.clientes || 0} 
+          icon={<Users size={24}/>} 
+          color="text-purple-400" 
+          bg="bg-purple-500/10" 
+          border="border-purple-500/20"
         />
       </div>
 
-      {/* SECCIÓN PRINCIPAL: GRÁFICOS Y FORMULARIO */}
+      {/* --- FILA 2: GRÁFICOS PRINCIPALES (NUEVO) --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        
+        {/* GRÁFICO 1: EVOLUCIÓN DE INGRESOS (Area Chart) - Ocupa 2 columnas */}
+        <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-5"><TrendingUp size={100} color="white"/></div>
+             <h3 className="text-white font-bold mb-6 text-lg flex items-center gap-2">
+                <span className="w-1 h-6 bg-blue-500 rounded-full"></span> Tendencia de Ingresos
+             </h3>
+             <div className="h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.chartIngresos}>
+                    <defs>
+                      <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="mes" stroke="#64748b" tick={{fill: '#94a3b8', fontSize: 12}} axisLine={false} tickLine={false} />
+                    <YAxis stroke="#64748b" tick={{fill: '#94a3b8', fontSize: 12}} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                    <Tooltip contentStyle={{backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px'}} />
+                    <Area type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#colorIngresos)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+             </div>
+        </div>
+
+        {/* GRÁFICO 2: ESTADO DE CAJA (Donut Chart) - Ocupa 1 columna */}
+        <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
+             <h3 className="text-white font-bold mb-6 text-lg flex items-center gap-2">
+                <span className="w-1 h-6 bg-emerald-500 rounded-full"></span> Estado de Pagos
+             </h3>
+             <div className="h-[280px] relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={data.chartEstados} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                      {data.chartEstados.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS_DONUT[index % COLORS_DONUT.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color:'#fff'}} />
+                    <Legend verticalAlign="bottom" height={36} iconType="circle"/>
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Centro del Donut */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+                    <span className="text-3xl font-bold text-white">{data.chartEstados.reduce((acc, curr) => acc + curr.value, 0)}</span>
+                    <span className="text-xs text-slate-500 uppercase font-bold">Órdenes</span>
+                </div>
+             </div>
+        </div>
+      </div>
+
+      {/* --- FILA 3: RANKING MARCAS Y FORMULARIO (Mantenemos tu estructura) --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* GRÁFICO (Ocupa 2 columnas) */}
+        {/* GRÁFICO 3: MARCAS (Horizontal Bar) - Reemplaza al viejo vertical */}
         <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
-          <h3 className="text-lg font-semibold text-white mb-6">Ranking por Modelo</h3>
+          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <span className="w-1 h-6 bg-orange-500 rounded-full"></span> Top Marcas Atendidas
+          </h3>
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
-                <XAxis dataKey="name" tick={{fill: '#94a3b8', fontSize: 12}} axisLine={false} tickLine={false} dy={10} />
-                <YAxis tick={{fill: '#94a3b8', fontSize: 12}} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v/1000000}M`} />
-                <Tooltip 
-                  cursor={{fill: '#1e293b'}} 
-                  contentStyle={{backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px'}} 
-                />
-                <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
+              <BarChart data={data.chartMarcas} layout="vertical" barSize={20} margin={{left: 20}}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#334155" />
+                <XAxis type="number" stroke="#64748b" hide />
+                <YAxis dataKey="name" type="category" stroke="#94a3b8" width={100} tick={{fill: '#cbd5e1', fontSize: 12, fontWeight: 'bold'}} />
+                <Tooltip cursor={{fill: '#1e293b'}} contentStyle={{backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px'}} />
+                <Bar dataKey="cantidad" radius={[0, 4, 4, 0]}>
+                   {data.chartMarcas.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 0 ? '#F97316' : '#ea580c'} />
+                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* FORMULARIO RÁPIDO (Ocupa 1 columna) */}
+        {/* TU FORMULARIO ORIGINAL (INTACTO) */}
         <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Plus size={18} className="text-blue-500"/> Ingreso Rápido
@@ -153,26 +230,17 @@ const Dashboard = () => {
   );
 };
 
-// Sub-componente interno para las tarjetas
-const KpiCard = ({ title, value, icon, trend, suffix }) => (
-  <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
-    <div className="flex justify-between items-start mb-4">
-      <div>
-        <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">{title}</p>
-        <h3 className="text-3xl font-bold text-white mt-1">
-          {value} <span className="text-sm text-slate-500 font-normal">{suffix}</span>
-        </h3>
-      </div>
-      <div className="p-3 bg-slate-800 rounded-lg group-hover:bg-slate-700 transition-colors">
-        {icon}
-      </div>
+// Componente KpiCard optimizado
+const KpiCard = ({ title, value, icon, color, bg, border }) => (
+    <div className={`p-6 rounded-xl border ${border} ${bg} backdrop-blur-sm flex items-center gap-4 transition-transform hover:scale-[1.02]`}>
+        <div className={`p-3 rounded-lg bg-slate-950/50 ${color} shadow-lg`}>
+            {icon}
+        </div>
+        <div>
+            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">{title}</p>
+            <h3 className="text-2xl font-bold text-white mt-1">{value}</h3>
+        </div>
     </div>
-    {trend && (
-      <p className="text-xs text-emerald-400 font-medium bg-emerald-500/10 inline-block px-2 py-1 rounded">
-        {trend}
-      </p>
-    )}
-  </div>
 );
 
 export default Dashboard;

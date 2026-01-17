@@ -22,7 +22,7 @@ const db = mysql.createPool({
     keepAliveInitialDelay: 0
 });
 
-console.log("✅ SERVIDOR V9.0 - DASHBOARD ANALYTICS PRO");
+console.log("✅ SERVIDOR V9.5 - REPORTE EJECUTIVO PDF ACTIVO");
 
 // --- RUTAS API ---
 
@@ -40,7 +40,6 @@ app.get('/api/analytics', (req, res) => {
     `;
 
     // B. Gráfico 1: Ingresos por Mes (Curva de Tendencia)
-    // Agrupa por mes (YYYY-MM) usando tu columna 'fecha'
     const sqlIngresos = `
         SELECT DATE_FORMAT(fecha, '%Y-%m') as mes, SUM(total_facturado) as total 
         FROM ordenes_trabajo 
@@ -50,7 +49,6 @@ app.get('/api/analytics', (req, res) => {
     `;
 
     // C. Gráfico 2: Marcas Más Atendidas (Ranking)
-    // Conecta ordenes con vehiculos para ver qué marcas facturan más
     const sqlMarcas = `
         SELECT v.marca as name, COUNT(ot.id_ot) as cantidad, SUM(ot.total_facturado) as ventas
         FROM ordenes_trabajo ot 
@@ -61,14 +59,12 @@ app.get('/api/analytics', (req, res) => {
     `;
 
     // D. Gráfico 3: Estado de Caja (Donut)
-    // Usa tu columna real 'estado_pago'
     const sqlEstados = `
         SELECT estado_pago as name, COUNT(*) as value 
         FROM ordenes_trabajo 
         GROUP BY estado_pago
     `;
 
-    // Ejecución en cascada
     db.query(sqlKPIs, (err, rKPIs) => {
         if (err) return res.json({ kpis: {}, chartIngresos: [], chartMarcas: [], chartEstados: [] });
         
@@ -132,19 +128,135 @@ app.get('/api/servicios', (req, res) => {
     });
 });
 
-// 5. REPORTES
+// 5. REPORTES EJECUTIVOS (MODIFICADO)
 app.get('/api/reportes/cliente/:id', (req, res) => {
     const clientId = req.params.id;
+
+    // 1. Obtener Datos del Cliente
     db.query("SELECT * FROM clientes WHERE id_cliente = ?", [clientId], (err, rows) => {
         if (err || rows.length === 0) return res.status(404).send("Cliente no encontrado");
         const cliente = rows[0];
-        const doc = new PDFDocument();
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=Ficha_${cliente.nombre_completo.replace(/ /g,'_')}.pdf`);
-        doc.pipe(res);
-        doc.fontSize(20).text('FICHA DE CLIENTE', { align: 'center' });
-        doc.text(`Cliente: ${cliente.nombre_completo}`);
-        doc.end();
+
+        // 2. Obtener Historial Completo (Orden + Vehiculo)
+        const sqlHistorial = `
+            SELECT 
+                ot.fecha, 
+                ot.diagnostico_software, 
+                ot.total_facturado, 
+                ot.estado_pago,
+                v.marca, 
+                v.modelo, 
+                v.patente 
+            FROM ordenes_trabajo ot 
+            LEFT JOIN vehiculos v ON ot.id_vehiculo = v.id_vehiculo 
+            WHERE ot.id_cliente = ? 
+            ORDER BY ot.fecha DESC
+        `;
+
+        db.query(sqlHistorial, [clientId], (err2, historial) => {
+            if (err2) return res.status(500).send("Error generando reporte");
+
+            const doc = new PDFDocument({ margin: 50 });
+
+            // Configurar Headers para descarga
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename=Reporte_Ejecutivo_${cliente.nombre_completo.replace(/ /g,'_')}.pdf`);
+            doc.pipe(res);
+
+            // --- A. ENCABEZADO CORPORATIVO ---
+            doc.fontSize(20).fillColor('#2563EB').text('NOR-TECH-LY / PV360', { align: 'left' }); // Azul Corporativo
+            doc.fontSize(10).fillColor('#64748B').text('Reporte Ejecutivo de Servicios', { align: 'left' });
+            
+            // Fecha a la derecha
+            doc.fontSize(10).text(new Date().toLocaleString(), 400, 50, { align: 'right' });
+            
+            // Línea divisoria
+            doc.moveDown(0.5);
+            doc.rect(50, 90, 500, 2).fill('#2563EB'); // Barra Azul
+
+            // --- B. PERFIL DEL CLIENTE ---
+            doc.moveDown(2);
+            doc.rect(50, 110, 500, 70).fill('#F1F5F9'); // Fondo Gris Suave
+            doc.fillColor('#0F172A').fontSize(14).text(cliente.nombre_completo, 70, 125, { bold: true });
+            doc.fontSize(10).fillColor('#475569');
+            doc.text(`ID Cliente: #${cliente.id_cliente}`, 70, 145);
+            doc.text(`Email: ${cliente.email || 'No registrado'}`, 250, 145);
+            doc.text(`Teléfono: ${cliente.telefono || 'No registrado'}`, 400, 145);
+
+            // --- C. KPI SUMMARY (RESUMEN FINANCIERO) ---
+            const totalInvertido = historial.reduce((acc, curr) => acc + Number(curr.total_facturado || 0), 0);
+            const vehiculosUnicos = new Set(historial.map(h => h.patente)).size;
+
+            doc.moveDown(4);
+            doc.fontSize(12).fillColor('#0F172A').text('RESUMEN EJECUTIVO', 50, 200, { underline: true });
+            
+            // Dibujamos 3 Cajas de KPI
+            doc.fontSize(10).text('INVERSIÓN TOTAL', 50, 220);
+            doc.fontSize(14).text(`$${totalInvertido.toLocaleString('es-AR')}`, 50, 235);
+
+            doc.fontSize(10).text('VEHÍCULOS', 200, 220);
+            doc.fontSize(14).text(`${vehiculosUnicos} Unidades`, 200, 235);
+
+            doc.fontSize(10).text('VISITAS HISTÓRICAS', 350, 220);
+            doc.fontSize(14).text(`${historial.length} Servicios`, 350, 235);
+
+            // --- D. TABLA DETALLADA ---
+            doc.moveDown(4);
+            let yPosition = 280;
+
+            // Encabezados de Tabla
+            doc.rect(50, yPosition, 500, 20).fill('#1E293B'); // Fondo Negro Tabla
+            doc.fillColor('#FFFFFF').fontSize(9);
+            doc.text('FECHA', 60, yPosition + 5);
+            doc.text('VEHÍCULO / PATENTE', 160, yPosition + 5);
+            doc.text('SERVICIO REALIZADO', 300, yPosition + 5);
+            doc.text('ESTADO', 460, yPosition + 5, { align: 'right' });
+
+            yPosition += 30;
+            doc.fillColor('#334155'); // Color texto filas
+
+            // Filas de datos
+            historial.forEach((item, index) => {
+                // Verificar si necesitamos nueva página
+                if (yPosition > 700) {
+                    doc.addPage();
+                    yPosition = 50;
+                }
+
+                // Fondo alternado para filas
+                if (index % 2 === 0) {
+                    doc.rect(50, yPosition - 5, 500, 30).fill('#F8FAFC'); 
+                }
+
+                doc.fillColor('#0F172A').fontSize(9);
+                
+                // Fecha
+                const fechaFormat = new Date(item.fecha).toLocaleDateString();
+                doc.text(fechaFormat, 60, yPosition);
+
+                // Vehículo (Marca Modelo + Patente)
+                const vehiculoInfo = item.marca ? `${item.marca} ${item.modelo}` : 'Vehículo Genérico';
+                doc.text(vehiculoInfo, 160, yPosition, { width: 120 });
+                doc.fontSize(7).fillColor('#64748B').text(item.patente || 'S/P', 160, yPosition + 10);
+
+                // Servicio
+                doc.fontSize(9).fillColor('#0F172A').text(item.diagnostico_software || 'Sin detalle', 300, yPosition, { width: 150 });
+
+                // Monto y Estado
+                doc.text(`$${Number(item.total_facturado).toLocaleString('es-AR')}`, 460, yPosition, { align: 'right' });
+                
+                const estadoTexto = item.estado_pago || 'Pendiente';
+                doc.fontSize(7).fillColor(estadoTexto === 'Pagado' ? '#10B981' : '#F59E0B');
+                doc.text(estadoTexto.toUpperCase(), 460, yPosition + 10, { align: 'right' });
+
+                yPosition += 35; // Espacio para la siguiente fila
+            });
+
+            // --- E. PIE DE PÁGINA ---
+            doc.fontSize(8).fillColor('#94a3b8').text('Generado automáticamente por Sistema PV360 PRO', 50, 750, { align: 'center' });
+
+            doc.end();
+        });
     });
 });
 
