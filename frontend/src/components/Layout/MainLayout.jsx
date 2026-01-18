@@ -1,25 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, FileText, Settings, Wrench, LogOut } from 'lucide-react';
+import LogoutModal from '../LogoutModal';
 
 const MainLayout = ({ children }) => {
   const location = useLocation();
-  const isActive = (path) => location.pathname === path 
-    ? "bg-blue-600 text-white shadow-lg" 
+  const isActive = (path) => location.pathname === path
+    ? "bg-blue-600 text-white shadow-lg"
     : "text-slate-400 hover:bg-slate-800 hover:text-white";
 
-  // FUNCIÓN SALIR (Simplemente recarga para volver al login)
-  const handleLogout = () => {
-      if(window.confirm("¿Cerrar sesión?")) {
-          window.location.href = "/";
-          window.location.reload();
-      }
+  // ESTADO DEL MODAL
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // MANEJADORES
+  const openLogoutModal = () => setShowLogoutModal(true);
+  const closeLogoutModal = () => setShowLogoutModal(false);
+
+  const confirmLogout = () => {
+    window.location.href = "/";
+    window.location.reload();
   };
 
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden">
       <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col hidden md:flex">
-        
+
         {/* LOGO */}
         <div className="p-6 flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white">PV</div>
@@ -44,8 +49,8 @@ const MainLayout = ({ children }) => {
 
         {/* PIE DE MENÚ CON BOTÓN SALIR */}
         <div className="p-4 border-t border-slate-800">
-          <button 
-            onClick={handleLogout}
+          <button
+            onClick={openLogoutModal}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-900/20 transition-all font-bold"
           >
             <LogOut size={20} />
@@ -57,6 +62,13 @@ const MainLayout = ({ children }) => {
       <main className="flex-1 overflow-auto p-8">
         {children}
       </main>
+
+      {/* MODAL DE CONFIRMACIÓN */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={closeLogoutModal}
+        onConfirm={confirmLogout}
+      />
     </div>
   );
 };

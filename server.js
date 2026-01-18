@@ -67,12 +67,12 @@ app.get('/api/analytics', (req, res) => {
 
     db.query(sqlKPIs, (err, rKPIs) => {
         if (err) return res.json({ kpis: {}, chartIngresos: [], chartMarcas: [], chartEstados: [] });
-        
+
         db.query(sqlIngresos, (err2, rIngresos) => {
             db.query(sqlMarcas, (err3, rMarcas) => {
                 db.query(sqlEstados, (err4, rEstados) => {
                     res.json({
-                        kpis: rKPIs[0] || { ots:0, total:0, flota:0, clientes:0 },
+                        kpis: rKPIs[0] || { ots: 0, total: 0, flota: 0, clientes: 0 },
                         chartIngresos: rIngresos || [],
                         chartMarcas: rMarcas || [],
                         chartEstados: rEstados || []
@@ -90,17 +90,17 @@ app.get('/api/clientes', (req, res) => {
 app.post('/api/clientes', (req, res) => {
     const { nombre, nombre_completo, email, telefono } = req.body;
     const nombreFinal = nombre || nombre_completo;
-    if (!nombreFinal) return res.status(400).json({error: "Falta nombre"});
-    db.query("INSERT INTO clientes (nombre_completo, email, telefono) VALUES (?, ?, ?)", 
-        [nombreFinal, email, telefono || ''], (err, result) => res.json({success: true, id: result.insertId}));
+    if (!nombreFinal) return res.status(400).json({ error: "Falta nombre" });
+    db.query("INSERT INTO clientes (nombre_completo, email, telefono) VALUES (?, ?, ?)",
+        [nombreFinal, email, telefono || ''], (err, result) => res.json({ success: true, id: result.insertId }));
 });
 app.put('/api/clientes/:id', (req, res) => {
     const { nombre, nombre_completo, email, telefono } = req.body;
-    db.query("UPDATE clientes SET nombre_completo = ?, email = ?, telefono = ? WHERE id_cliente = ?", 
-        [nombre || nombre_completo, email, telefono, req.params.id], (err) => res.json({success: true}));
+    db.query("UPDATE clientes SET nombre_completo = ?, email = ?, telefono = ? WHERE id_cliente = ?",
+        [nombre || nombre_completo, email, telefono, req.params.id], (err) => res.json({ success: true }));
 });
 app.delete('/api/clientes/:id', (req, res) => {
-    db.query("DELETE FROM clientes WHERE id_cliente = ?", [req.params.id], (err) => res.json({success: true}));
+    db.query("DELETE FROM clientes WHERE id_cliente = ?", [req.params.id], (err) => res.json({ success: true }));
 });
 
 // 3. ÓRDENES DE TRABAJO
@@ -116,8 +116,16 @@ app.post('/api/ordenes', (req, res) => {
         res.json({ success: true, id: result.insertId });
     });
 });
+app.put('/api/ordenes/:id', (req, res) => {
+    const { id_cliente, detalle, total_facturado, estado } = req.body;
+    const sql = `UPDATE ordenes_trabajo SET id_cliente = ?, diagnostico_software = ?, total_facturado = ?, estado_pago = ? WHERE id_ot = ?`;
+    db.query(sql, [id_cliente, detalle, total_facturado, estado, req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
 app.delete('/api/ordenes/:id', (req, res) => {
-    db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => res.json({success: true}));
+    db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => res.json({ success: true }));
 });
 
 // 4. CATÁLOGO
@@ -160,16 +168,16 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
 
             // Configurar Headers para descarga
             res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `attachment; filename=Reporte_Ejecutivo_${cliente.nombre_completo.replace(/ /g,'_')}.pdf`);
+            res.setHeader('Content-Disposition', `attachment; filename=Reporte_Ejecutivo_${cliente.nombre_completo.replace(/ /g, '_')}.pdf`);
             doc.pipe(res);
 
             // --- A. ENCABEZADO CORPORATIVO ---
             doc.fontSize(20).fillColor('#2563EB').text('NOR-TECH-LY / PV360', { align: 'left' }); // Azul Corporativo
             doc.fontSize(10).fillColor('#64748B').text('Reporte Ejecutivo de Servicios', { align: 'left' });
-            
+
             // Fecha a la derecha
             doc.fontSize(10).text(new Date().toLocaleString(), 400, 50, { align: 'right' });
-            
+
             // Línea divisoria
             doc.moveDown(0.5);
             doc.rect(50, 90, 500, 2).fill('#2563EB'); // Barra Azul
@@ -189,7 +197,7 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
 
             doc.moveDown(4);
             doc.fontSize(12).fillColor('#0F172A').text('RESUMEN EJECUTIVO', 50, 200, { underline: true });
-            
+
             // Dibujamos 3 Cajas de KPI
             doc.fontSize(10).text('INVERSIÓN TOTAL', 50, 220);
             doc.fontSize(14).text(`$${totalInvertido.toLocaleString('es-AR')}`, 50, 235);
@@ -225,11 +233,11 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
 
                 // Fondo alternado para filas
                 if (index % 2 === 0) {
-                    doc.rect(50, yPosition - 5, 500, 30).fill('#F8FAFC'); 
+                    doc.rect(50, yPosition - 5, 500, 30).fill('#F8FAFC');
                 }
 
                 doc.fillColor('#0F172A').fontSize(9);
-                
+
                 // Fecha
                 const fechaFormat = new Date(item.fecha).toLocaleDateString();
                 doc.text(fechaFormat, 60, yPosition);
@@ -244,7 +252,7 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
 
                 // Monto y Estado
                 doc.text(`$${Number(item.total_facturado).toLocaleString('es-AR')}`, 460, yPosition, { align: 'right' });
-                
+
                 const estadoTexto = item.estado_pago || 'Pendiente';
                 doc.fontSize(7).fillColor(estadoTexto === 'Pagado' ? '#10B981' : '#F59E0B');
                 doc.text(estadoTexto.toUpperCase(), 460, yPosition + 10, { align: 'right' });
