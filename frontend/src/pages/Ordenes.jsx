@@ -221,7 +221,9 @@ const Ordenes = () => {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 p-6 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-white text-xl font-bold">Nueva Orden de Trabajo</h2>
+              <h2 className="text-white text-xl font-bold">
+                {modoEdicion ? 'Editar Orden de Trabajo' : 'Nueva Orden de Trabajo'}
+              </h2>
               <button onClick={() => setModalAbierto(false)} className="text-slate-400 hover:text-white"><X /></button>
             </div>
 

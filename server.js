@@ -24,6 +24,11 @@ const db = mysql.createPool({
 
 console.log("✅ SERVIDOR V9.5 - REPORTE EJECUTIVO PDF ACTIVO");
 
+// FIX: Eliminar restricción de domingos (Solicitud Usuario)
+db.query("DROP TRIGGER IF EXISTS check_horario_comercial_ot", (err) => {
+    if (!err) console.log("✅ Restricción de domingos eliminada correctamente.");
+});
+
 // --- RUTAS API ---
 
 app.get('/', (req, res) => res.send('API PV360 ONLINE v9.0'));
