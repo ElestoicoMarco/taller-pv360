@@ -31,7 +31,7 @@ db.query("DROP TRIGGER IF EXISTS check_horario_comercial_ot", (err) => {
 
 // --- RUTAS API ---
 
-app.get('/', (req, res) => res.send('API PV360 ONLINE v9.0'));
+app.get('/', (req, res) => res.send('API PV360 ONLINE v10.0 - CLOUD ACTIVE'));
 
 // 1. ANALYTICS AVANZADO (NUEVO)
 app.get('/api/analytics', (req, res) => {
