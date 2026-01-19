@@ -28,7 +28,7 @@ const Dashboard = () => {
   // 2. CARGA DE DATOS (Conecta con tu server v9.0)
   const loadDashboard = useCallback(async () => {
     try {
-      const res = await axios.get('https://taller-pv360-c69q.onrender.com/api/analytics');
+      const res = await axios.get('https://taller-pv360-rejl.onrender.com/api/analytics');
       // Si el backend devuelve estructura vieja o nueva, tratamos de adaptarnos, 
       // pero idealmente esperamos la estructura v9.0
       setData(res.data || { kpis: {}, chartIngresos: [], chartMarcas: [], chartEstados: [] });
@@ -55,7 +55,7 @@ const Dashboard = () => {
         telefono: '0' // Hack para evitar error de DB
       };
 
-      const res = await axios.post('https://taller-pv360-c69q.onrender.com/api/clientes', payload);
+      const res = await axios.post('https://taller-pv360-rejl.onrender.com/api/clientes', payload);
 
       if (res.data.success) {
         setNewCli({ nombre: '', email: '' });

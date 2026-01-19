@@ -6,7 +6,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 
 // TU URL DE RENDER
-const API_URL = 'https://taller-pv360-c69q.onrender.com/api';
+const API_URL = 'https://taller-pv360-rejl.onrender.com/api';
 
 const Reportes = () => {
   const [clientes, setClientes] = useState([]);

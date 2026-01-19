@@ -7,7 +7,7 @@ import Toast from '../components/Toast';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 
 // URL DEL BACKEND
-const API_URL = 'https://taller-pv360-c69q.onrender.com/api/clientes';
+const API_URL = 'https://taller-pv360-rejl.onrender.com/api/clientes';
 
 const Clientes = () => {
   const [clientes, setClientes] = useState([]);

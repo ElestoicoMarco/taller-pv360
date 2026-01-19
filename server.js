@@ -29,9 +29,14 @@ db.query("DROP TRIGGER IF EXISTS check_horario_comercial_ot", (err) => {
     if (!err) console.log("✅ Restricción de domingos eliminada correctamente.");
 });
 
+// FIX: Ampliar ENUM de estados para soportar 'En Progreso' y 'Entregado'
+db.query("ALTER TABLE ordenes_trabajo MODIFY COLUMN estado_pago ENUM('Pendiente', 'En Progreso', 'Pagado', 'Pagada', 'Entregado') DEFAULT 'Pendiente'", (err) => {
+    if (!err) console.log("✅ Esquema de estados actualizado correctamente.");
+});
+
 // --- RUTAS API ---
 
-app.get('/', (req, res) => res.send('API PV360 ONLINE v10.0 - CLOUD ACTIVE'));
+app.get('/', (req, res) => res.send('API PV360 ONLINE v10.1 - SCHEMA FIX ACTIVE'));
 
 // 1. ANALYTICS AVANZADO (NUEVO)
 app.get('/api/analytics', (req, res) => {

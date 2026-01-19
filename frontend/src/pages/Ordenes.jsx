@@ -7,7 +7,7 @@ import Toast from '../components/Toast';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 
 // URL del Backend (Render)
-const API_URL = 'https://taller-pv360-c69q.onrender.com/api';
+const API_URL = 'https://taller-pv360-rejl.onrender.com/api';
 
 const Ordenes = () => {
   // Estados para datos
@@ -193,8 +193,10 @@ const Ordenes = () => {
                   <td className="p-4 text-white font-medium">{ot.nombre_completo || 'Sin Cliente'}</td>
                   <td className="p-4">{ot.detalle}</td>
                   <td className="p-4">
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${ot.estado === 'Pagada' ? 'bg-green-500/20 text-green-400' :
-                      ot.estado === 'En Progreso' ? 'bg-blue-500/20 text-blue-400' : 'bg-yellow-500/20 text-yellow-400'
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${ot.estado === 'Pagado' || ot.estado === 'Pagada' ? 'bg-green-500/20 text-green-400' :
+                      ot.estado === 'En Progreso' ? 'bg-blue-500/20 text-blue-400' :
+                        ot.estado === 'Entregado' ? 'bg-purple-500/20 text-purple-400' :
+                          'bg-yellow-500/20 text-yellow-400'
                       }`}>
                       {ot.estado}
                     </span>
@@ -304,7 +306,7 @@ const Ordenes = () => {
                   >
                     <option value="Pendiente">Pendiente</option>
                     <option value="En Progreso">En Progreso</option>
-                    <option value="Pagada">Pagada</option>
+                    <option value="Pagado">Pagado</option>
                     <option value="Entregado">Entregado</option>
                   </select>
                 </div>
