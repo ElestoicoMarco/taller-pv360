@@ -115,12 +115,12 @@ app.delete('/api/clientes/:id', (req, res) => {
 
 // 3. ÓRDENES DE TRABAJO
 app.get('/api/ordenes', (req, res) => {
-    const sql = `SELECT ot.id_ot, c.nombre_completo, ot.descripcion_software as detalle, ot.total_facturado, ot.estado_pago as estado, ot.fecha FROM ordenes_trabajo ot LEFT JOIN clientes c ON ot.id_cliente = c.id_cliente ORDER BY ot.id_ot DESC LIMIT 50`;
+    const sql = `SELECT ot.id_ot, c.nombre_completo, ot.descripcion as detalle, ot.total_facturado, ot.estado_pago as estado, ot.fecha FROM ordenes_trabajo ot LEFT JOIN clientes c ON ot.id_cliente = c.id_cliente ORDER BY ot.id_ot DESC LIMIT 50`;
     db.query(sql, (err, rows) => res.json(rows || []));
 });
 app.post('/api/ordenes', (req, res) => {
     const { id_cliente, detalle, total_facturado, estado } = req.body;
-    const sql = `INSERT INTO ordenes_trabajo (id_cliente, descripcion_software, total_facturado, estado_pago, fecha, id_vehiculo, id_empleado, id_tecnico, id_asesor) VALUES (?, ?, ?, ?, NOW(), 1, 1, 1, 1)`;
+    const sql = `INSERT INTO ordenes_trabajo (id_cliente, descripcion, total_facturado, estado_pago, fecha, id_vehiculo, id_empleado, id_tecnico, id_asesor) VALUES (?, ?, ?, ?, NOW(), 1, 1, 1, 1)`;
     db.query(sql, [id_cliente, detalle, total_facturado || 0, estado || 'Pendiente'], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: result.insertId });
@@ -128,7 +128,7 @@ app.post('/api/ordenes', (req, res) => {
 });
 app.put('/api/ordenes/:id', (req, res) => {
     const { id_cliente, detalle, total_facturado, estado } = req.body;
-    const sql = `UPDATE ordenes_trabajo SET id_cliente = ?, descripcion_software = ?, total_facturado = ?, estado_pago = ? WHERE id_ot = ?`;
+    const sql = `UPDATE ordenes_trabajo SET id_cliente = ?, descripcion = ?, total_facturado = ?, estado_pago = ? WHERE id_ot = ?`;
     db.query(sql, [id_cliente, detalle, total_facturado, estado, req.params.id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
@@ -159,7 +159,7 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
         const sqlHistorial = `
             SELECT 
                 ot.fecha, 
-                ot.descripcion_software, 
+                ot.descripcion, 
                 ot.total_facturado, 
                 ot.estado_pago,
                 v.marca, 
@@ -261,7 +261,7 @@ app.get('/api/reportes/cliente/:id', (req, res) => {
                 // 3. Servicio (CORRECCIÓN DE DATOS: Decodificar 0 y 1)
                 doc.fontSize(9).fillColor('#0F172A');
 
-                let servicioTexto = item.descripcion_software || 'Sin detalle';
+                let servicioTexto = item.descripcion || 'Sin detalle';
 
                 // Lógica para interpretar los códigos según tu indicación
                 if (servicioTexto == '0') {
