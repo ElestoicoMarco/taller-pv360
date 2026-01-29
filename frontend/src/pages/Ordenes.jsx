@@ -95,6 +95,7 @@ const Ordenes = () => {
         total: orden.total_facturado,
         estado: orden.estado
       });
+      //
     } else {
       setModoEdicion(false);
       setForm({ id_ot: '', id_cliente: '', detalle: '', total: '', estado: 'Pendiente' });

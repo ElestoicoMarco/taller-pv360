@@ -120,7 +120,7 @@ app.get('/api/ordenes', (req, res) => {
 });
 app.post('/api/ordenes', (req, res) => {
     const { id_cliente, detalle, total_facturado, estado } = req.body;
-    const sql = `INSERT INTO ordenes_trabajo (id_cliente, descripcion, total_facturado, estado_pago, fecha, id_vehiculo, id_empleado, id_tecnico, id_asesor) VALUES (?, ?, ?, ?, NOW(), 1, 1, 1, 1)`;
+    const sql = `INSERT INTO ordenes_trabajo (id_cliente, descripcion, total_facturado, estado_pago, fecha, hora) VALUES (?, ?, ?, ?, CURDATE(), CURTIME())`;
     db.query(sql, [id_cliente, detalle, total_facturado || 0, estado || 'Pendiente'], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: result.insertId });
