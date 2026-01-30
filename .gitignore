@@ -1,0 +1,16 @@
+# Environment variables
+# .env (User opted to include in repo)
+# .env
+
+.env.local
+
+# Node modules
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# SQL dumps (optional, but good practice if they contain data)
+*.sql
