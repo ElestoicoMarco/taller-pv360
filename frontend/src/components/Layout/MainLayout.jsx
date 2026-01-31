@@ -28,7 +28,7 @@ const MainLayout = ({ children }) => {
     <div className="flex h-screen bg-slate-950 overflow-hidden relative">
 
       {/* TOP GLASS HEADER (FIXED) */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 z-50 flex items-center px-4 justify-between shadow-lg md:hidden">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 z-50 flex items-center px-4 justify-between shadow-lg">
         <div className="flex items-center gap-4">
           <button
             onClick={toggleSidebar}
@@ -38,8 +38,8 @@ const MainLayout = ({ children }) => {
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
 
-          {/* Logo visible only on mobile */}
-          <div className="flex items-center gap-2">
+          {/* Logo visible only on mobile or when sidebar is closed (optional, keeps context) */}
+          <div className="flex items-center gap-2 md:hidden">
             <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center font-bold text-white text-xs">PV</div>
             <span className="font-bold text-white text-sm">PV-360 <span className="text-blue-500">PRO</span></span>
           </div>
@@ -53,7 +53,7 @@ const MainLayout = ({ children }) => {
 
       {/* SIDEBAR COLAPSABLE (NEON GLASS STYLE - AZULADO) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#082f49]/40 backdrop-blur-md border-r border-cyan-500/30 flex flex-col transition-transform duration-300 ease-in-out shadow-[0_0_15px_rgba(6,182,212,0.15),inset_0_0_30px_rgba(6,182,212,0.1)] pt-16 md:pt-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#082f49]/40 backdrop-blur-md border-r border-cyan-500/30 flex flex-col transition-transform duration-300 ease-in-out shadow-[0_0_15px_rgba(6,182,212,0.15),inset_0_0_30px_rgba(6,182,212,0.1)] pt-16 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
       >
 
@@ -92,14 +92,14 @@ const MainLayout = ({ children }) => {
       </aside>
 
       {/* MAIN CONTENT (With padding-top for header) */}
-      <main className="flex-1 overflow-auto p-4 md:p-8 w-full pt-20 md:pt-8 md:ml-64 transition-all">
+      <main className="flex-1 overflow-auto p-8 w-full pt-24 transition-all">
         {children}
       </main>
 
       {/* OVERLAY PARA CERRAR AL CLICKERA AFUERA (OPCIONAL PERO RECOMENDADO) */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
