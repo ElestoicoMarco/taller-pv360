@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import MainLayout from '../components/Layout/MainLayout';
-import { Search, Edit, Trash2, UserPlus, Save, X, FileText } from 'lucide-react';
+import { Search, Edit, Trash2, UserPlus, Save, X, FileText, Car } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import VehiculosModal from '../components/VehiculosModal';
 
 // URL DEL BACKEND
 const API_URL = 'https://taller-pv360-rejl.onrender.com/api/clientes';
@@ -16,6 +17,7 @@ const Clientes = () => {
 
   // ESTADOS MODAL
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [vehiculosModal, setVehiculosModal] = useState({ open: false, id: null, nombre: '' });
   const [modoEdicion, setModoEdicion] = useState(false);
   const [form, setForm] = useState({ id: '', nombre: '', email: '', telefono: '' });
 
@@ -169,6 +171,13 @@ const Clientes = () => {
                   <td className="p-4">
                     <div className="flex justify-center gap-2">
                       <button
+                        onClick={(e) => { e.stopPropagation(); setVehiculosModal({ open: true, id: cli.id_cliente, nombre: cli.nombre_completo }); }}
+                        className="p-2 text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors tooltip"
+                        title="Gestionar Flota"
+                      >
+                        <Car size={18} />
+                      </button>
+                      <button
                         onClick={(e) => { e.stopPropagation(); abrirModal(cli); }}
                         className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors tooltip"
                         title="Editar datos"
@@ -247,6 +256,12 @@ const Clientes = () => {
         onClose={() => setDeleteModal({ ...deleteModal, show: false })}
         onConfirm={confirmDelete}
         itemName={deleteModal.nombre}
+      />
+      <VehiculosModal
+        isOpen={vehiculosModal.open}
+        onClose={() => setVehiculosModal({ ...vehiculosModal, open: false })}
+        clienteId={vehiculosModal.id}
+        clienteNombre={vehiculosModal.nombre}
       />
     </MainLayout>
   );

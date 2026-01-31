@@ -119,23 +119,54 @@ app.get('/api/ordenes', (req, res) => {
     db.query(sql, (err, rows) => res.json(rows || []));
 });
 app.post('/api/ordenes', (req, res) => {
-    const { id_cliente, detalle, total_facturado, estado } = req.body;
-    const sql = `INSERT INTO ordenes_trabajo (id_cliente, descripcion, total_facturado, estado_pago, fecha, hora) VALUES (?, ?, ?, ?, CURDATE(), CURTIME())`;
-    db.query(sql, [id_cliente, detalle, total_facturado || 0, estado || 'Pendiente'], (err, result) => {
+    const { id_cliente, id_vehiculo, detalle, total_facturado, estado } = req.body;
+    const sql = `INSERT INTO ordenes_trabajo (id_cliente, id_vehiculo, descripcion, total_facturado, estado_pago, fecha, hora) VALUES (?, ?, ?, ?, ?, CURDATE(), CURTIME())`;
+    db.query(sql, [id_cliente, id_vehiculo || null, detalle, total_facturado || 0, estado || 'Pendiente'], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: result.insertId });
     });
 });
 app.put('/api/ordenes/:id', (req, res) => {
-    const { id_cliente, detalle, total_facturado, estado } = req.body;
-    const sql = `UPDATE ordenes_trabajo SET id_cliente = ?, descripcion = ?, total_facturado = ?, estado_pago = ? WHERE id_ot = ?`;
-    db.query(sql, [id_cliente, detalle, total_facturado, estado, req.params.id], (err) => {
+    const { id_cliente, id_vehiculo, detalle, total_facturado, estado } = req.body;
+    const sql = `UPDATE ordenes_trabajo SET id_cliente = ?, id_vehiculo = ?, descripcion = ?, total_facturado = ?, estado_pago = ? WHERE id_ot = ?`;
+    db.query(sql, [id_cliente, id_vehiculo || null, detalle, total_facturado, estado, req.params.id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });
 });
 app.delete('/api/ordenes/:id', (req, res) => {
     db.query("DELETE FROM ordenes_trabajo WHERE id_ot = ?", [req.params.id], (err) => res.json({ success: true }));
+});
+
+// 3.5. VEHÍCULOS (NUEVO - GESTOR DE FLOTA)
+app.get('/api/vehiculos/cliente/:id', (req, res) => {
+    const sql = "SELECT * FROM vehiculos WHERE id_cliente = ? ORDER BY id_vehiculo DESC";
+    db.query(sql, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/vehiculos', (req, res) => {
+    const { id_cliente, marca, modelo, patente, vin, anio, recurso } = req.body;
+
+    // Validaciones básicas
+    if (!id_cliente || !marca || !modelo || !patente || !vin || !anio) {
+        return res.status(400).json({ error: "Faltan datos obligatorios (incluyendo VIN)" });
+    }
+
+    const sql = `INSERT INTO vehiculos (id_cliente, marca, modelo, patente, vin_chasis, anio, recurso) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+
+    db.query(sql, [id_cliente, marca, modelo, patente, vin, anio, recurso || 'Nafta'], (err, result) => {
+        if (err) {
+            // Manejo de duplicados (Patente o VIN)
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ error: "La Patente o el VIN ya están registrados en otro vehículo." });
+            }
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ success: true, id: result.insertId });
+    });
 });
 
 // 4. CATÁLOGO

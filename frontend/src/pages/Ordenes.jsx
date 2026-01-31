@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import MainLayout from '../components/Layout/MainLayout';
-import { Wrench, Plus, Trash2, Save, X, AlertCircle, Edit } from 'lucide-react';
+import { Wrench, Plus, Trash2, Save, X, AlertCircle, Edit, Car } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
@@ -14,6 +14,7 @@ const Ordenes = () => {
   const [ordenes, setOrdenes] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [servicios, setServicios] = useState([]);
+  const [vehiculos, setVehiculos] = useState([]); // Flota del cliente seleccionado
 
   // Estados de interfaz
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -30,6 +31,7 @@ const Ordenes = () => {
   const [form, setForm] = useState({
     id_ot: '',
     id_cliente: '',
+    id_vehiculo: '', // Nuevo campo
     detalle: '',
     total: '',
     estado: 'Pendiente'
@@ -58,6 +60,17 @@ const Ordenes = () => {
   };
 
   useEffect(() => { cargarDatos(); }, []);
+
+  // 1.5 EFECTO: CARGAR VEHÍCULOS AL SELECCIONAR CLIENTE
+  useEffect(() => {
+    if (form.id_cliente) {
+      axios.get(`${API_URL}/vehiculos/cliente/${form.id_cliente}`)
+        .then(res => setVehiculos(res.data))
+        .catch(err => console.error("Error cargando flota", err));
+    } else {
+      setVehiculos([]);
+    }
+  }, [form.id_cliente]);
 
   // 2. LÓGICA DEL CATÁLOGO (AUTO-COMPLETAR)
   // 2. LÓGICA DEL CATÁLOGO (AUTO-COMPLETAR)
@@ -116,6 +129,7 @@ const Ordenes = () => {
 
     const payload = {
       id_cliente: form.id_cliente,
+      id_vehiculo: form.id_vehiculo || null, // Nuevo campo
       detalle: form.detalle,
       total_facturado: form.total || 0,
       estado: form.estado
@@ -238,23 +252,47 @@ const Ordenes = () => {
 
             <form onSubmit={handleGuardar} className="space-y-4">
 
-              {/* 1. SELECTOR CLIENTE */}
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Cliente *</label>
-                <select
-                  className="w-full bg-slate-950 text-white p-3 rounded-lg border border-slate-700 focus:border-orange-500 outline-none transition-all"
-                  value={form.id_cliente}
-                  onChange={e => setForm({ ...form, id_cliente: e.target.value })}
-                  required
-                >
-                  <option value="">-- Seleccionar Cliente --</option>
-                  {clientes.map(c => (
-                    <option key={c.id_cliente} value={c.id_cliente}>
-                      {c.nombre_completo}
-                    </option>
-                  ))}
-                </select>
-                {clientes.length === 0 && <p className="text-xs text-red-400 mt-1">⚠️ No se cargaron clientes. Revisa tu conexión.</p>}
+              <div className="grid grid-cols-2 gap-4">
+                {/* CLIENTE */}
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Cliente *</label>
+                  <select
+                    className="w-full bg-slate-950 text-white p-3 rounded-lg border border-slate-700 focus:border-orange-500 outline-none transition-all"
+                    value={form.id_cliente}
+                    onChange={e => setForm({ ...form, id_cliente: e.target.value, id_vehiculo: '' })}
+                    required
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {clientes.map(c => (
+                      <option key={c.id_cliente} value={c.id_cliente}>
+                        {c.nombre_completo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* VEHÍCULO */}
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block flex items-center gap-2">
+                    Vehículo {form.id_cliente && vehiculos.length === 0 && <span className="text-[10px] text-red-400 normal-case">(Sin flota registrada)</span>}
+                  </label>
+                  <div className="relative">
+                    <Car size={16} className="absolute left-3 top-3.5 text-slate-500 pointer-events-none" />
+                    <select
+                      className="w-full bg-slate-950 text-white pl-9 p-3 rounded-lg border border-slate-700 focus:border-orange-500 outline-none transition-all disabled:opacity-50"
+                      value={form.id_vehiculo}
+                      onChange={e => setForm({ ...form, id_vehiculo: e.target.value })}
+                      disabled={!form.id_cliente}
+                    >
+                      <option value="">-- {form.id_cliente ? 'Seleccionar Vehículo' : 'Elija Cliente Primero'} --</option>
+                      {vehiculos.map(v => (
+                        <option key={v.id_vehiculo} value={v.id_vehiculo}>
+                          {v.marca} {v.modelo} - {v.patente}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
 
               {/* 2. SELECTOR CATÁLOGO */}
