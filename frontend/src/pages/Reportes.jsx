@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import MainLayout from '../components/Layout/MainLayout';
-import { Search, FileText, Download, Printer, AlertCircle } from 'lucide-react';
+import { Search, FileText, Download, Printer } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
 import Toast from '../components/Toast';
 
@@ -121,21 +121,7 @@ const Reportes = () => {
           </div>
         </div>
 
-        {/* Card Inactiva: Órdenes */}
-        <div className="relative group overflow-hidden rounded-3xl bg-slate-900/20 backdrop-blur-sm border border-slate-800/50 opacity-60">
-          <div className="p-6 relative z-10 grayscale group-hover:grayscale-0 transition-all duration-500">
-            <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center mb-4 text-slate-500">
-              <AlertCircle size={24} />
-            </div>
-            <h3 className="text-slate-300 font-bold text-xl mb-2">Reportes Globales</h3>
-            <p className="text-slate-500 text-sm">
-              Estadísticas generales del taller, ingresos y métricas de rendimiento.
-            </p>
-            <div className="mt-4 px-3 py-1 bg-slate-800 rounded-full text-[10px] text-slate-400 inline-block font-mono border border-slate-700">
-              PRÓXIMAMENTE
-            </div>
-          </div>
-        </div>
+
       </div>
 
       {/* BUSCADOR (INDIGO STYLE) */}
