@@ -277,8 +277,22 @@ const Clientes = () => {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2 block">Ciudad / Localidad</label>
-                  <input className="w-full bg-slate-950/80 text-white p-4 rounded-xl border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-all placeholder:text-slate-600"
-                    placeholder="Ej: San Salvador de Jujuy" value={form.ciudad} onChange={e => setForm({ ...form, ciudad: e.target.value })} />
+                  <select
+                    className="w-full bg-slate-950/80 text-white p-4 rounded-xl border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-all placeholder:text-slate-600 appearance-none"
+                    value={form.ciudad}
+                    onChange={e => setForm({ ...form, ciudad: e.target.value })}
+                  >
+                    <option value="">Seleccione una ciudad...</option>
+                    <option value="San Salvador de Jujuy">San Salvador de Jujuy</option>
+                    <option value="Palpalá">Palpalá</option>
+                    <option value="Perico">Perico</option>
+                    <option value="San Pedro">San Pedro</option>
+                    <option value="Libertador Gral. San Martín">Libertador Gral. San Martín</option>
+                    <option value="Tilcara">Tilcara</option>
+                    <option value="Humahuaca">Humahuaca</option>
+                    <option value="La Quiaca">La Quiaca</option>
+                    <option value="Otra">Otra</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2 block">Correo Electrónico</label>

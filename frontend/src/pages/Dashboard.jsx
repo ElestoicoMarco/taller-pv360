@@ -357,4 +357,6 @@ const KpiCard = ({ title, value, icon, gradient, borderColor, shadowColor, trend
 
 
 
+
+// Custom Shape para Box Plot
 export default Dashboard;
