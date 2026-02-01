@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Save, Car, Trash2, ShieldCheck, Fuel } from 'lucide-react';
+import { X, Save, Car, HelpCircle, Info, AlertTriangle } from 'lucide-react';
 
 const VehiculosModal = ({ isOpen, onClose, clienteId, clienteNombre }) => {
     const [vehiculos, setVehiculos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [loadingSave, setLoadingSave] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
-    const [editingId, setEditingId] = useState(null); // ID del vehículo en edición
+    const [editingId, setEditingId] = useState(null);
+    const [showHelp, setShowHelp] = useState(false); // Estado para mostrar ayuda
 
     // Formulario Vehículo
     const [form, setForm] = useState({
@@ -109,7 +110,40 @@ const VehiculosModal = ({ isOpen, onClose, clienteId, clienteNombre }) => {
                             </h2>
                             <p className="text-slate-400 text-sm">{clienteNombre}</p>
                         </div>
+                        {/* Botón de Ayuda */}
+                        <button
+                            onClick={() => setShowHelp(!showHelp)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${showHelp ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                        >
+                            <HelpCircle size={16} />
+                            Ayuda
+                        </button>
                     </div>
+
+                    {/* Caja de Ayuda Contextual */}
+                    {showHelp && (
+                        <div className="mb-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl relative animate-in slide-in-from-top-2 duration-200">
+                            <h4 className="text-blue-400 font-bold flex items-center gap-2 mb-2 text-sm">
+                                <Info size={16} /> ¿Cómo gestionar la flota?
+                            </h4>
+                            <ul className="space-y-2 text-xs text-slate-300">
+                                <li className="flex gap-2">
+                                    <span className="bg-blue-500/20 text-blue-300 rounded px-1.5 font-mono">1</span>
+                                    <span>Para <b>editar</b>, toca sobre la tarjeta del vehículo que deseas modificar.</span>
+                                </li>
+                                <li className="flex gap-2">
+                                    <span className="bg-orange-500/20 text-orange-300 rounded px-1.5 font-mono">2</span>
+                                    <span>Completa el formulario a la derecha y presiona "Guardar Cambios".</span>
+                                </li>
+                                <li className="flex gap-2 items-start mt-2 pt-2 border-t border-blue-500/10 text-slate-400">
+                                    <AlertTriangle size={14} className="shrink-0 mt-0.5 text-yellow-500" />
+                                    <span>
+                                        <b>No se puede borrar:</b> Por seguridad del historial de servicios, no permitimos eliminar vehículos. Contacta a soporte si es un error.
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                    )}
 
                     <div className="flex-1 overflow-auto pr-2 custom-scrollbar">
                         {loading ? (
