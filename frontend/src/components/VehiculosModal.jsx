@@ -81,7 +81,9 @@ const VehiculosModal = ({ isOpen, onClose, clienteId, clienteNombre }) => {
             cargarVehiculos();
         } catch (error) {
             console.error("Error saving:", error);
-            setErrorMsg(error.response?.data?.error || "Error al guardar vehículo. Verifique los datos.");
+            const serverError = error.response?.data?.error;
+            const status = error.response?.status;
+            setErrorMsg(serverError || `Error desconocido (${status || 'Red'}). Verifique su conexión.`);
         } finally {
             setLoadingSave(false);
         }
