@@ -124,7 +124,13 @@ app.get('/api/analytics', (req, res) => {
         LIMIT 20
     `;
 
-
+    // F. Gráfico 5: Box Plot (Distribución de Precios por Marca)
+    const sqlBoxPlot = `
+        SELECT v.marca, ot.total_facturado 
+        FROM ordenes_trabajo ot 
+        JOIN vehiculos v ON ot.id_vehiculo = v.id_vehiculo
+        WHERE ot.total_facturado > 0
+    `;
 
     db.query(sqlKPIs, (err, rKPIs) => {
         if (err) {
