@@ -243,13 +243,36 @@ app.post('/api/vehiculos', (req, res) => {
 
     db.query(sql, [id_cliente, marca, modelo, patente, vin, anio, recurso || 'Nafta'], (err, result) => {
         if (err) {
+            console.error("Error al registrar vehículo:", err); // Log del error en consola servidor
             // Manejo de duplicados (Patente o VIN)
             if (err.code === 'ER_DUP_ENTRY') {
                 return res.status(400).json({ error: "La Patente o el VIN ya están registrados en otro vehículo." });
             }
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: "Error de base de datos: " + err.message });
         }
         res.json({ success: true, id: result.insertId });
+    });
+});
+
+app.put('/api/vehiculos/:id', (req, res) => {
+    const { marca, modelo, patente, vin, anio, recurso } = req.body;
+
+    // Validaciones
+    if (!marca || !modelo || !patente || !vin || !anio) {
+        return res.status(400).json({ error: "Faltan datos obligatorios para actualizar" });
+    }
+
+    const sql = `UPDATE vehiculos SET marca = ?, modelo = ?, patente = ?, vin_chasis = ?, anio = ?, recurso = ? WHERE id_vehiculo = ?`;
+
+    db.query(sql, [marca, modelo, patente, vin, anio, recurso || 'Nafta', req.params.id], (err, result) => {
+        if (err) {
+            console.error("Error al actualizar vehículo:", err);
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ error: "La Patente o el VIN ya existen en otro vehículo." });
+            }
+            return res.status(500).json({ error: "Error al actualizar: " + err.message });
+        }
+        res.json({ success: true });
     });
 });
 
