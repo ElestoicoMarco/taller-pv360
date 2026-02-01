@@ -132,11 +132,58 @@ app.get('/api/analytics', (req, res) => {
         WHERE ot.total_facturado > 0
     `;
 
+    // G. Gráfico 6: Market Penetration (Chino vs Tradicional) - Stacked Bar
+    const sqlMercado = `
+        SELECT 
+            DATE_FORMAT(ot.fecha, '%Y-%m') as mes,
+            SUM(CASE 
+                WHEN UPPER(TRIM(v.marca)) IN ('BYD', 'JETOUR', 'BAIC', 'CHERY', 'MG', 'GWM', 'CHANGAN', 'JAC', 'DFSK', 'TITO') THEN 1 
+                ELSE 0 
+            END) as chino,
+            SUM(CASE 
+                WHEN UPPER(TRIM(v.marca)) NOT IN ('BYD', 'JETOUR', 'BAIC', 'CHERY', 'MG', 'GWM', 'CHANGAN', 'JAC', 'DFSK', 'TITO') THEN 1 
+                ELSE 0 
+            END) as tradicional
+        FROM ordenes_trabajo ot
+        JOIN vehiculos v ON ot.id_vehiculo = v.id_vehiculo
+        /* WHERE ot.fecha >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) -- Comentado para mostrar todo el historial */
+        GROUP BY mes
+        ORDER BY mes ASC
+    `;
+
     db.query(sqlKPIs, (err, rKPIs) => {
         if (err) {
             console.error("DB Error (Returning Mock Data):", err);
-            // ... (Mock data handling remains same, can be updated if critical)
-            return res.json({ /* ... existing mock response ... */ });
+            return res.json({
+                kpis: { ots: 12, total: 1500000, flota: 5, clientes: 8 },
+                chartIngresos: [
+                    { mes: '2023-08', total: 500000, ganancia: 200000 },
+                    { mes: '2023-09', total: 600000, ganancia: 250000 },
+                    { mes: '2023-10', total: 750000, ganancia: 300000 },
+                    { mes: '2023-11', total: 900000, ganancia: 350000 },
+                    { mes: '2023-12', total: 1200000, ganancia: 450000 },
+                    { mes: '2024-01', total: 1500000, ganancia: 600000 }
+                ],
+                chartMarcas: [
+                    { name: 'FORD', cantidad: 10, ventas: 500000 },
+                    { name: 'TOYOTA', cantidad: 8, ventas: 400000 },
+                    { name: 'CHERY', cantidad: 5, ventas: 250000 },
+                    { name: 'FIAT', cantidad: 4, ventas: 150000 },
+                    { name: 'BYD', cantidad: 3, ventas: 200000 }
+                ],
+                chartEstados: [
+                    { name: 'Pagado', value: 10 },
+                    { name: 'Pendiente', value: 5 }
+                ],
+                chartMercado: [
+                    { mes: '2023-08', chino: 1, tradicional: 4 },
+                    { mes: '2023-09', chino: 2, tradicional: 5 },
+                    { mes: '2023-10', chino: 3, tradicional: 6 },
+                    { mes: '2023-11', chino: 5, tradicional: 7 },
+                    { mes: '2023-12', chino: 8, tradicional: 8 },
+                    { mes: '2024-01', chino: 12, tradicional: 10 }
+                ]
+            });
         }
 
         db.query(sqlIngresos, (err2, rIngresos) => {
@@ -144,57 +191,60 @@ app.get('/api/analytics', (req, res) => {
                 db.query(sqlEstados, (err4, rEstados) => {
                     db.query(sqlHeatmap, (err5, rHeatmap) => {
                         db.query(sqlBoxPlot, (err6, rBoxPlotRaw) => {
+                            db.query(sqlMercado, (err7, rMercado) => {
 
-                            // PROCESAMIENTO BOX PLOT (Javascript-side calculation)
-                            const statsByBrand = {};
+                                // PROCESAMIENTO BOX PLOT (Javascript-side calculation)
+                                const statsByBrand = {};
 
-                            // Agrupar valores por marca
-                            if (rBoxPlotRaw) {
-                                rBoxPlotRaw.forEach(row => {
-                                    const brand = row.marca || 'GENERICO';
-                                    const val = Number(row.total_facturado);
-                                    if (!statsByBrand[brand]) statsByBrand[brand] = [];
-                                    statsByBrand[brand].push(val);
+                                // Agrupar valores por marca
+                                if (rBoxPlotRaw) {
+                                    rBoxPlotRaw.forEach(row => {
+                                        const brand = row.marca || 'GENERICO';
+                                        const val = Number(row.total_facturado);
+                                        if (!statsByBrand[brand]) statsByBrand[brand] = [];
+                                        statsByBrand[brand].push(val);
+                                    });
+                                }
+
+                                // Filtrar marcas con pocos datos (opcional, para limpiar el gráfico)
+                                // Calculamos stats solo para top marcas o todas
+                                const chartBoxPlotMarcas = Object.keys(statsByBrand)
+                                    .map(brand => {
+                                        const values = statsByBrand[brand].sort((a, b) => a - b);
+
+                                        // Necesitamos al menos unos pocos datos para un box plot decente, pero mostraremos lo que haya
+                                        const min = values[0];
+                                        const max = values[values.length - 1];
+
+                                        const q1 = values[Math.floor((values.length - 1) * 0.25)];
+                                        const median = values[Math.floor((values.length - 1) * 0.5)];
+                                        const q3 = values[Math.floor((values.length - 1) * 0.75)];
+
+                                        return {
+                                            name: brand,
+                                            min,
+                                            q1,
+                                            median,
+                                            q3,
+                                            max,
+                                            count: values.length // Para ordenar por popularidad si queremos
+                                        };
+                                    })
+                                    .sort((a, b) => b.median - a.median) // Ordenar por costo mediano descendente
+                                    .slice(0, 10); // Top 10 marcas más caras/populares
+
+                                res.json({
+                                    kpis: rKPIs[0] || { ots: 0, total: 0, flota: 0, clientes: 0 },
+                                    chartIngresos: rIngresos || [],
+                                    chartMarcas: rMarcas || [],
+                                    chartEstados: rEstados || [],
+                                    chartHeatmap: rHeatmap || [],
+                                    chartMercado: rMercado || [], // NUEVO: Datos Mercado
+                                    chartBoxPlotMarcas: chartBoxPlotMarcas.length > 0 ? chartBoxPlotMarcas : [
+                                        { name: 'FORD', min: 20000, q1: 45000, median: 80000, q3: 120000, max: 250000 },
+                                        { name: 'TOYOTA', min: 30000, q1: 60000, median: 110000, q3: 150000, max: 300000 }
+                                    ]
                                 });
-                            }
-
-                            // Filtrar marcas con pocos datos (opcional, para limpiar el gráfico)
-                            // Calculamos stats solo para top marcas o todas
-                            const chartBoxPlotMarcas = Object.keys(statsByBrand)
-                                .map(brand => {
-                                    const values = statsByBrand[brand].sort((a, b) => a - b);
-
-                                    // Necesitamos al menos unos pocos datos para un box plot decente, pero mostraremos lo que haya
-                                    const min = values[0];
-                                    const max = values[values.length - 1];
-
-                                    const q1 = values[Math.floor((values.length - 1) * 0.25)];
-                                    const median = values[Math.floor((values.length - 1) * 0.5)];
-                                    const q3 = values[Math.floor((values.length - 1) * 0.75)];
-
-                                    return {
-                                        name: brand,
-                                        min,
-                                        q1,
-                                        median,
-                                        q3,
-                                        max,
-                                        count: values.length // Para ordenar por popularidad si queremos
-                                    };
-                                })
-                                .sort((a, b) => b.median - a.median) // Ordenar por costo mediano descendente
-                                .slice(0, 10); // Top 10 marcas más caras/populares
-
-                            res.json({
-                                kpis: rKPIs[0] || { ots: 0, total: 0, flota: 0, clientes: 0 },
-                                chartIngresos: rIngresos || [],
-                                chartMarcas: rMarcas || [],
-                                chartEstados: rEstados || [],
-                                chartHeatmap: rHeatmap || [],
-                                chartBoxPlotMarcas: chartBoxPlotMarcas.length > 0 ? chartBoxPlotMarcas : [
-                                    { name: 'FORD', min: 20000, q1: 45000, median: 80000, q3: 120000, max: 250000 },
-                                    { name: 'TOYOTA', min: 30000, q1: 60000, median: 110000, q3: 150000, max: 300000 }
-                                ]
                             });
                         });
                     });

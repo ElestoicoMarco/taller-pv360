@@ -17,7 +17,8 @@ const Dashboard = () => {
     kpis: { ots: 0, total: 0, flota: 0, clientes: 0 },
     chartIngresos: [],
     chartMarcas: [],
-    chartEstados: []
+    chartEstados: [],
+    chartMercado: [] // NUEVO: Estado para gráfico de penetración
   });
 
   const [loading, setLoading] = useState(true);
@@ -25,8 +26,9 @@ const Dashboard = () => {
   // 2. CARGA DE DATOS
   const loadDashboard = useCallback(async () => {
     try {
-      const res = await axios.get('https://taller-pv360-rejl.onrender.com/api/analytics');
-      setData(res.data || { kpis: {}, chartIngresos: [], chartMarcas: [], chartEstados: [] });
+      const res = await axios.get('https://taller-pv360-rejl.onrender.com/api/analytics'); // PROD
+      // const res = await axios.get('http://localhost:5000/api/analytics'); // LOCAL TEST
+      setData(res.data || { kpis: {}, chartIngresos: [], chartMarcas: [], chartEstados: [], chartMercado: [] });
     } catch (err) {
       console.error("Error cargando dashboard:", err);
     } finally {
@@ -66,7 +68,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KpiCard
           title="Total Facturado"
-          value={`$ ${Number(data.kpis.total || 0).toLocaleString('es-AR')}`}
+          value={`$ ${Number(data.kpis?.total || 0).toLocaleString('es-AR')}`}
           icon={<DollarSign size={24} className="text-cyan-400" />}
           gradient="from-cyan-500/20 to-blue-500/5"
           borderColor="border-cyan-500/20"
@@ -76,7 +78,7 @@ const Dashboard = () => {
         />
         <KpiCard
           title="Órdenes Activas"
-          value={data.kpis.ots || 0}
+          value={data.kpis?.ots || 0}
           icon={<Zap size={24} className="text-purple-400" />}
           gradient="from-purple-500/20 to-pink-500/5"
           borderColor="border-purple-500/20"
@@ -86,7 +88,7 @@ const Dashboard = () => {
         />
         <KpiCard
           title="Flota Atendida"
-          value={data.kpis.flota || 0}
+          value={data.kpis?.flota || 0}
           icon={<Car size={24} className="text-orange-400" />}
           gradient="from-orange-500/20 to-red-500/5"
           borderColor="border-orange-500/20"
@@ -96,7 +98,7 @@ const Dashboard = () => {
         />
         <KpiCard
           title="Cartera Clientes"
-          value={data.kpis.clientes || 0}
+          value={data.kpis?.clientes || 0}
           icon={<Users size={24} className="text-emerald-400" />}
           gradient="from-emerald-500/20 to-teal-500/5"
           borderColor="border-emerald-500/20"
@@ -286,38 +288,78 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* GRÁFICO 4: SCATTER PLOT - Premium Style */}
+        {/* GRÁFICO 4: MARKET PENETRATION (Stacked Bar) - New Feature */}
         <div className="flex-1 w-full relative bg-slate-900/50 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-xl overflow-hidden flex flex-col">
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl -ml-5 -mb-5 pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl -ml-5 -mb-5 pointer-events-none"></div>
 
-          <div className="mb-4 relative z-10">
-            <h3 className="text-lg font-bold text-white leading-tight">
-              Análisis: Marcas
-            </h3>
-            <p className="text-xs text-slate-400">Volumen vs Facturación</p>
+          <div className="mb-4 relative z-10 flex justify-between items-start">
+            <div>
+              <h3 className="text-lg font-bold text-white leading-tight">
+                Penetración de Mercado
+              </h3>
+              <p className="text-xs text-slate-400">Chinas (Disruptivas) vs Tradicionales</p>
+            </div>
           </div>
 
-          <div className="flex-1 w-full relative z-10">
-            <ResponsiveContainer width="100%" height={200}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
-                <defs>
-                  <linearGradient id="scatterDotGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#F472B6" />
-                    <stop offset="100%" stopColor="#A855F7" />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis type="number" dataKey="cantidad" name="Vehículos" stroke="#64748b" unit=" un." tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={{ stroke: '#334155' }} />
-                <YAxis type="number" dataKey="ventas" name="Facturación" stroke="#64748b" tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={{ stroke: '#334155' }} width={40} />
-                <ZAxis type="category" dataKey="name" name="Marca" />
-                <Tooltip cursor={{ strokeDasharray: '3 3', stroke: '#475569' }} contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderColor: '#334155', color: '#fff', fontSize: '12px', borderRadius: '8px' }} formatter={(value, name) => [name === 'ventas' ? `$${Number(value).toLocaleString()}` : value, name === 'ventas' ? 'Facturación' : 'Vehículos']} />
-                <Scatter name="Marcas" data={data.chartMarcas} fill="url(#scatterDotGradient)" shape="circle" />
-              </ScatterChart>
+          <div className="flex-1 w-full relative z-10 min-h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.chartMercado || []} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis dataKey="mes" stroke="#64748b" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderColor: '#334155', color: '#fff', fontSize: '12px', borderRadius: '8px' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                <Bar dataKey="tradicional" name="Tradicional" stackId="a" fill="#3B82F6" radius={[0, 0, 4, 4]} />
+                <Bar dataKey="chino" name="Chinas (Disruptivas)" stackId="a" fill="#EF4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-2 text-center text-xs text-slate-500 border-t border-slate-800/50 pt-3 relative z-10">
-            Cant. Vehículos vs Total Facturado
+          {/* CAPA PRESCRIPTIVA (Recomendaciones Inteligentes) */}
+          <div className="mt-4 border-t border-slate-800/50 pt-3 relative z-10">
+            {(() => {
+              const lastMonth = (data.chartMercado && data.chartMercado.length > 0) ? data.chartMercado[data.chartMercado.length - 1] : { chino: 0, tradicional: 0 };
+              const total = (lastMonth.chino || 0) + (lastMonth.tradicional || 0);
+              const shareChino = total > 0 ? (lastMonth.chino / total) : 0;
+
+              const prevMonth = (data.chartMercado && data.chartMercado.length > 1) ? data.chartMercado[data.chartMercado.length - 2] : { chino: 0 };
+              const growthChino = prevMonth.chino > 0 ? ((lastMonth.chino - prevMonth.chino) / prevMonth.chino) : 0;
+
+              if (shareChino > 0.30) {
+                return (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                    <p className="text-[10px] text-red-200">
+                      <strong className="block text-red-400">ALERTA ESTRATÉGICA</strong>
+                      Volumen Chino {'>'} 30%. Requerida capacitación EV/Híbridos.
+                    </p>
+                  </div>
+                );
+              } else if (growthChino > 0.15) {
+                return (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+                    <p className="text-[10px] text-amber-200">
+                      <strong className="block text-amber-400">OPORTUNIDAD CRECIMIENTO</strong>
+                      Crecimiento Chino acelerado. Adquirir Scanners CAN-FD/DoIP.
+                    </p>
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-2 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <p className="text-[10px] text-blue-300">
+                      <strong className="block text-blue-400">TENDENCIA ESTABLE</strong>
+                      Mantener stock preventivo de insumos comunes para marcas chinas.
+                    </p>
+                  </div>
+                );
+              }
+            })()}
           </div>
         </div>
       </div>
