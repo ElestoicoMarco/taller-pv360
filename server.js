@@ -39,6 +39,27 @@ db.query("ALTER TABLE clientes ADD COLUMN ciudad VARCHAR(255) DEFAULT ''", (err)
     if (!err) console.log("✅ Columna 'ciudad' agregada a tabla clientes.");
 });
 
+// FIX: Asegurar esquema de tabla VEHICULOS (Auto-reparación)
+const fixVehiculosSchema = () => {
+    // 1. Asegurar vin_chasis
+    db.query("ALTER TABLE vehiculos ADD COLUMN vin_chasis VARCHAR(50) DEFAULT NULL", (err) => {
+        if (!err) console.log("✅ Columna 'vin_chasis' verificada/agregada.");
+    });
+    // 2. Asegurar recurso
+    db.query("ALTER TABLE vehiculos ADD COLUMN recurso VARCHAR(50) DEFAULT 'Nafta'", (err) => {
+        if (!err) console.log("✅ Columna 'recurso' verificada/agregada.");
+    });
+    // 3. Asegurar anio
+    db.query("ALTER TABLE vehiculos ADD COLUMN anio INT DEFAULT NULL", (err) => {
+        if (!err) console.log("✅ Columna 'anio' verificada/agregada.");
+    });
+    // 4. Asegurar version_software (evitar error de campo obligatorio faltante)
+    db.query("ALTER TABLE vehiculos MODIFY COLUMN version_software VARCHAR(100) DEFAULT NULL", (err) => {
+        if (!err) console.log("✅ Columna 'version_software' actualizada a NULLABLE.");
+    });
+};
+fixVehiculosSchema();
+
 // --- RUTAS API ---
 
 app.get('/', (req, res) => res.send('API PV360 ONLINE v10.2 - CIUDAD UPDATE'));
